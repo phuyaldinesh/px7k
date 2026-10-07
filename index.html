@@ -160,7 +160,7 @@ mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;bor
     <div class="tablewrap"><table class="hist"><thead><tr><th>Question</th><th>Time</th><th>Score</th><th>Facing</th><th>WPM</th><th>Fillers</th></tr></thead><tbody id="hist"></tbody></table></div>
   </section>
 
-  <p class="note">Best in Chrome on a laptop. Expression and eye-contact readings are estimates from head position and facial shape, not true gaze tracking. Chrome's speech-to-text sometimes drops "um" and "uh", so the filler count may run low. AI feedback sends only your transcript and scores, never video.</p>
+  <p class="note">Best in Chrome on a laptop. Expression and eye-contact readings are estimates from head position and facial shape, not true gaze tracking. Chrome's speech-to-text sometimes drops "um" and "uh", so the filler count may run low. AI feedback sends only your transcript and scores, never video. Version 4.</p>
 </div>
 
 <script>
@@ -303,7 +303,7 @@ function startSpeech(){
       "network":"Speech-to-text needs an internet connection and Google Chrome (Brave, Arc and some others don't support it).",
       "audio-capture":"No microphone found for speech-to-text.",
       "language-not-supported":"English speech-to-text isn't available in this browser."}[e.error];
-    if(msg){fatal=e.error!=="network"||true;$("status").textContent="Live words unavailable ("+e.error+"). Keep talking: your transcript will be created on your laptop after you press Stop.";}
+    if(msg){fatal=e.error!=="network"||true;$("status").textContent="Live words paused ("+e.error+"). Keep talking: your full transcript is made after you press Stop.";}
   };
   rec.onend=()=>{if(state==="recording"&&!fatal)try{rec.start()}catch(e){}};
   try{rec.start()}catch(e){}
@@ -341,10 +341,10 @@ $("btnStop").onclick=()=>{
   const stopped=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
   setTimeout(async()=>{S.interim="";
     await stopped;
-    if(countWords(textAll())<3&&S.voiceT>1500&&audioChunks.length){
-      try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));S.finals=[t];S.local=true}
-      catch(e){$("status").textContent="Could not create transcript: "+e.message}
-    }
+    if(audioChunks.length){
+      try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));if(countWords(t)>=countWords(textAll())){S.finals=[t];S.local=true}}
+      catch(e){$("status").textContent=(textAll()?"Using live transcript. ":"")+"On-laptop transcript failed: "+e.message;updateStart()}
+    }else if(!textAll())$("status").textContent="No audio was captured. Check that Chrome is allowed to use the microphone (icon in the address bar).";
     renderTranscript();finish();
   },700);
   previewLoop();
