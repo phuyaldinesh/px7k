@@ -177,7 +177,7 @@ const FILLERS=/\b(um+|uh+|erm|er|ah+|hmm+|like|you know|i mean|basically|actuall
 const EXP_COL={happy:"#3E9C7E",neutral:"#9AAAA6",surprised:"#5A8FC4",sad:"#7D6BB3",fearful:"#C98A1B",angry:"#B03E33",disgusted:"#8C5A3C"};
 
 let stream,modelsReady=false,currentQ="",state="idle",history=[];
-let rec, audioCtx, analyser, tBuf, loopTimer, audioTimer, tickTimer;
+let mr, audioChunks=[], whisper=null, rec, audioCtx, analyser, tBuf, loopTimer, audioTimer, tickTimer;
 let S; // session data
 
 // UI setup
@@ -260,6 +260,8 @@ function beginRecording(){
   S={q:currentQ,t0:performance.now(),frames:0,face:0,facing:0,exp:{},move:0,lastNose:null,finals:[],conf:[],interim:"",
      voiceT:0,firstVoice:null,lastVoice:null,silStart:null,pauses:0,longPauses:0,floor:1,rmsSum:0,rmsN:0,rmsSq:0};
   $("transcript").innerHTML="";
+  audioChunks=[];
+  try{mr=new MediaRecorder(new MediaStream(stream.getAudioTracks()));mr.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};mr.start(1000)}catch(e){mr=null}
   startSpeech();
   audioTimer=setInterval(audioTick,50);
   tickTimer=setInterval(()=>{const s=(performance.now()-S.t0)/1000;$("timer").textContent=fmt(s);$("timer").style.color=s>150?"var(--bad)":s>120?"var(--warn)":"";liveSpeech()},500);
@@ -301,10 +303,25 @@ function startSpeech(){
       "network":"Speech-to-text needs an internet connection and Google Chrome (Brave, Arc and some others don't support it).",
       "audio-capture":"No microphone found for speech-to-text.",
       "language-not-supported":"English speech-to-text isn't available in this browser."}[e.error];
-    if(msg){fatal=e.error!=="network"||true;$("status").textContent="Words not showing: "+msg+" Face and pause tracking still work.";}
+    if(msg){fatal=e.error!=="network"||true;$("status").textContent="Live words unavailable ("+e.error+"). Keep talking: your transcript will be created on your laptop after you press Stop.";}
   };
   rec.onend=()=>{if(state==="recording"&&!fatal)try{rec.start()}catch(e){}};
   try{rec.start()}catch(e){}
+}
+async function localTranscribe(blob){
+  $("btnStart").disabled=true;
+  $("status").textContent="Creating your transcript on this laptop...";
+  if(!whisper){
+    const {pipeline}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+    whisper=await pipeline("automatic-speech-recognition","Xenova/whisper-base.en",{progress_callback:p=>{
+      if(p.status==="progress"&&p.file&&p.file.endsWith(".onnx"))$("status").textContent="First time only: downloading speech model "+Math.round(p.progress||0)+"%";}});
+  }
+  $("status").textContent="Creating your transcript on this laptop...";
+  const ac=new AudioContext({sampleRate:16000});
+  const buf=await ac.decodeAudioData(await blob.arrayBuffer());ac.close();
+  const out=await whisper(buf.getChannelData(0),{chunk_length_s:30,stride_length_s:5});
+  $("status").textContent="Transcript ready.";updateStart();
+  return (out.text||"").trim();
 }
 function textAll(){return S.finals.join(" ").replace(/\s+/g," ").trim()}
 function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
@@ -321,7 +338,15 @@ $("btnStop").onclick=()=>{
   if(state!=="recording")return;
   state="idle";clearInterval(audioTimer);clearInterval(tickTimer);try{rec&&rec.stop()}catch(e){}
   $("rec").style.display="none";resetButtons();
-  setTimeout(()=>{S.interim="";renderTranscript();finish()},700); // let last speech result arrive
+  const stopped=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
+  setTimeout(async()=>{S.interim="";
+    await stopped;
+    if(countWords(textAll())<3&&S.voiceT>1500&&audioChunks.length){
+      try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));S.finals=[t];S.local=true}
+      catch(e){$("status").textContent="Could not create transcript: "+e.message}
+    }
+    renderTranscript();finish();
+  },700);
   previewLoop();
 };
 function resetButtons(){$("btnStart").style.display="";$("btnStop").style.display="none";updateStart()}
