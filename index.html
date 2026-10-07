@@ -38,7 +38,7 @@ header p{margin:0;color:var(--muted);font-size:.95rem}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem}
 .modebar{margin-bottom:1rem}
 .stage{position:relative;background:#0d1312;border-radius:10px;overflow:hidden;aspect-ratio:4/3}
-video,canvas.ov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.stage video,.stage canvas.ov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 .stage .empty{position:absolute;inset:0;display:grid;place-items:center;color:#cfdad6;text-align:center;padding:1.5rem}
 .rec{position:absolute;top:.6rem;left:.6rem;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:.2rem .7rem;font-size:.85rem;display:none;align-items:center;gap:.4rem}
 .rec i{width:.55rem;height:.55rem;border-radius:50%;background:#e5554a;display:inline-block}
@@ -159,6 +159,7 @@ body.real .q{font-weight:400;color:var(--muted)}
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optSpeak"> Read questions aloud</label>
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optShow"> Show question text</label>
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optVideo"> Record video</label>
+        <label class="row" style="gap:.3rem"><input type="checkbox" id="optDl"> Auto-download videos</label>
       </div>
       <div id="tipsWrap" style="display:none"><button class="link" id="btnTips">Show points to include</button><div id="tips" style="display:none"></div></div>
       <div class="row" style="justify-content:space-between;margin-top:1rem">
@@ -257,7 +258,7 @@ body.real .q{font-weight:400;color:var(--muted)}
     </details>
   </section>
 
-  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 8.</p>
+  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 9.</p>
 </div>
 
 <script>
@@ -272,7 +273,7 @@ const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
 
 // ---------- settings and saved data ----------
-let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true,voice:"",speak:true,show:true,video:true},store.get("settings_v1",{}));
+let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true,voice:"",speak:true,show:true,video:true,autoDl:true},store.get("settings_v1",{}));
 let mine=store.get("mine_v2",null);
 if(!mine){mine={profile:"",questions:store.get("myq_v1",[]).map(q=>({q,cat:"My questions"}))};store.set("mine_v2",mine)}
 let results=store.get("results_v1",[]);
@@ -311,11 +312,19 @@ const isReal=()=>!!(session&&session.mode==="real");
 function showQText(){if(!item)return;if(isReal()){$("question").textContent="Interview in progress. Listen and answer naturally.";$("btnReveal").style.display="none";return}const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
 $("btnHear").onclick=()=>{if(item&&state==="idle")speak(item.q)};
 $("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
-["optSpeak","optShow","optVideo"].forEach(id=>$(id).onchange=()=>{settings.speak=$("optSpeak").checked;settings.show=$("optShow").checked;settings.video=$("optVideo").checked;store.set("settings_v1",settings);showQText()});
+["optSpeak","optShow","optVideo","optDl"].forEach(id=>$(id).onchange=()=>{settings.speak=$("optSpeak").checked;settings.show=$("optShow").checked;settings.video=$("optVideo").checked;settings.autoDl=$("optDl").checked;store.set("settings_v1",settings);showQText()});
 
 // ---------- video recordings (kept in memory only) ----------
 const VIDS=new Map();let vr=null,vChunks=[];
-function attachVideo(r){if(!S.video)return;r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
+let dlCount=0;
+function vidName(q,mode){const d=new Date(),p=n=>String(n).padStart(2,"0");return `interview-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}_${(mode||"single")}_${String(q).replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").slice(0,40)}.webm`}
+function autoDownload(blob,q,mode){
+  if(!$("optDl").checked||!blob)return;
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=vidName(q,mode);document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);dlCount++;
+  if(dlCount===2)$("status").textContent="Videos are saving to your Downloads folder. If Chrome asks, choose Allow so every video can save.";
+}
+function attachVideo(r){if(!S.video)return;if(!S.dlDone){autoDownload(S.video,r.q,r.mode);S.dlDone=true}r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
 function showPlayback(r){const url=r&&r.vid&&VIDS.get(r.vid);$("playWrap").style.display=url?"":"none";$("playback").src=url||""}
 $("btnDlVid").onclick=()=>{const url=lastRec&&VIDS.get(lastRec.vid);if(!url)return;const a=document.createElement("a");a.href=url;a.download="answer-"+new Date(lastRec.t).toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm";a.click()};
 $("sumList").onclick=e=>{
@@ -720,6 +729,7 @@ async function stopRealAnswer(){
   const v=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
   await new Promise(r=>setTimeout(r,500));await a;await v;
   S.interim="";S.liveText=textAll();S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;
+  if(S.video){autoDownload(S.video,item.q,"real");S.dlDone=true}
   session.queue.push({S,G:{...G},item,audio:audioChunks});
   state="idle";previewLoop();
   if(session.ending||session.i>=session.items.length-1){processReal();return}
@@ -792,7 +802,7 @@ $("btnClearHist").onclick=()=>{if(confirm("Delete all saved scores from this bro
 
 // ---------- settings ----------
 function loadSettingsUI(){$("setSpec").value=settings.specialty;$("setProg").value=settings.program;$("setName").value=settings.name;$("setAbout").value=settings.about||mine.profile||"";$("setKey").value=settings.apiKey;$("setModel").value=settings.model;$("setAuto").checked=settings.autoAI}
-$("btnSaveSet").onclick=()=>{settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked,voice:$("setVoice").value,speak:$("optSpeak").checked,show:$("optShow").checked,video:$("optVideo").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
+$("btnSaveSet").onclick=()=>{settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked,voice:$("setVoice").value,speak:$("optSpeak").checked,show:$("optShow").checked,video:$("optVideo").checked,autoDl:$("optDl").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
 $("fileImport").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const j=JSON.parse(await f.text());const qs=(j.questions||[]).filter(x=>x&&x.q).map(x=>({q:String(x.q),tips:x.tips?String(x.tips):"",cat:"My questions"}));
@@ -809,7 +819,7 @@ $("btnUse").onclick=()=>{const v=$("custom").value.trim();if(!v)return;$("mode")
 $("btnSave").onclick=()=>{const v=$("custom").value.trim();if(!v)return;if(!mine.questions.some(x=>x.q===v))mine.questions.push({q:v,cat:"My questions"});store.set("mine_v2",mine);renderCats();$("custom").value="";$("myNote").textContent="Saved under My questions."};
 $("btnWipe").onclick=()=>{if(confirm("Delete your settings, API key, private questions and all scores from this browser?")){["settings_v1","mine_v2","myq_v1","results_v1"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()}};
 
-$("optSpeak").checked=settings.speak!==false;$("optShow").checked=settings.show!==false;$("optVideo").checked=settings.video!==false;
+$("optSpeak").checked=settings.speak!==false;$("optShow").checked=settings.show!==false;$("optVideo").checked=settings.video!==false;$("optDl").checked=settings.autoDl!==false;
 renderCats();loadSettingsUI();renderHistory();$("mode").onchange();
 </script>
 </body>
