@@ -1,4 +1,4 @@
-# Practice app guide (Version 6)
+# Practice app guide (Version 7)
 
 ## The files
 
@@ -13,7 +13,7 @@
 2. Click **Add file**, then **Upload files**.
 3. Drag in **index.html** only, then click **Commit changes**.
 4. Wait 2 minutes, open https://phuyaldinesh.github.io/px7k/ and press Ctrl + Shift + R (Mac: Cmd + Shift + R).
-5. The bottom of the page should say **Version 6**.
+5. The bottom of the page should say **Version 7**.
 
 ## 2. Load your private questions (one time)
 1. On the app page, open **Settings and private data** at the bottom.
@@ -40,7 +40,14 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 - **Full interview day:** about 25 questions in order: Program Director, Associate Program Director, Faculty (rapid fire), Faculty, Resident, Program Coordinator, closing. Plan about 60 to 90 minutes. Press **End session** any time to see your summary.
 - **English clarity drill:** read 8 pediatric sentences aloud. Words that were not understood are underlined, so you know exactly which words to practice.
 
-## 5. How each answer is scored (0 to 100)
+## 5. Spoken questions and video
+- **Read questions aloud:** the interviewer voice asks each question, then recording starts after a 2-second countdown. Change the voice in Settings.
+- **Show question text:** untick it to practice like a real interview (listen only). Click **Show question** if you need to read it.
+- **Hear question:** repeats the question.
+- **Record video:** after each answer, watch yourself under **Watch your answer**. In the session summary, click **Play** next to any answer.
+- Videos stay on the laptop and are deleted when you reload the page. Click **Download video** to keep one (.webm file; opens in Chrome or VLC).
+
+## 6. How each answer is scored (0 to 100)
 - **Content:** structure, specific examples, insight, fit with pediatrics. Scored by Claude, or a quick estimate marked with *.
 - **English clarity:** pace, fillers, pauses, how well two speech systems agree on your words, and Claude's grammar and word-choice review. Accent is not penalized.
 - **Delivery:** eye contact, eye rolls, looking up, smiling, tension, head movement, voice energy, answer length.
@@ -48,7 +55,7 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 
 All scores are saved in **Progress over time**. Click **Download my results (CSV)** to open them in Excel.
 
-## 6. If something goes wrong
+## 7. If something goes wrong
 - No transcript: wait for the speech model download the first time, and check the microphone is allowed (icon in the address bar).
 - Eye-roll counter shows "n/a": reload the page with Ctrl + Shift + R.
 - Moving to a new laptop or browser: import my-questions.json again and re-enter your API key.

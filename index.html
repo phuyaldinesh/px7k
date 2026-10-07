@@ -151,6 +151,12 @@ details>summary{cursor:pointer;font-weight:700}
       </div>
       <span class="role" id="role" style="display:none"></span>
       <p class="q" id="question">Pick a practice type above. For single questions, choose a category and press New question.</p>
+      <div class="row" id="qCtl"><button id="btnHear">&#128264; Hear question</button><button id="btnReveal" style="display:none">Show question</button></div>
+      <div class="row" style="margin-top:.5rem;font-size:.9rem;gap:.9rem">
+        <label class="row" style="gap:.3rem"><input type="checkbox" id="optSpeak"> Read questions aloud</label>
+        <label class="row" style="gap:.3rem"><input type="checkbox" id="optShow"> Show question text</label>
+        <label class="row" style="gap:.3rem"><input type="checkbox" id="optVideo"> Record video</label>
+      </div>
       <div id="tipsWrap" style="display:none"><button class="link" id="btnTips">Show points to include</button><div id="tips" style="display:none"></div></div>
       <div class="row" style="justify-content:space-between;margin-top:1rem">
         <div class="timer"><span id="timer">0:00</span> <small id="timerNote"></small></div>
@@ -174,6 +180,11 @@ details>summary{cursor:pointer;font-weight:700}
       <div class="sc"><b id="sDelivery">--</b><span>Delivery</span></div>
     </div>
     <p class="status" id="scoreNote"></p>
+    <div id="playWrap" style="display:none;margin-top:.6rem">
+      <strong>Watch your answer</strong>
+      <video id="playback" controls playsinline style="display:block;width:100%;max-height:420px;border-radius:10px;background:#000;margin-top:.4rem"></video>
+      <div class="row" style="margin-top:.4rem"><button id="btnDlVid">Download video</button><span class="status" style="margin:0">Videos stay on this laptop and disappear when you reload the page. Download any you want to keep.</span></div>
+    </div>
     <div id="drillOut"></div>
     <div id="metrics"></div>
     <div id="expWrap" style="margin-top:1rem">
@@ -196,6 +207,7 @@ details>summary{cursor:pointer;font-weight:700}
     <h2>Session summary</h2>
     <div class="scores" id="sumScores"></div>
     <div class="tablewrap"><table class="tbl" id="sumRoles"></table></div>
+    <video id="sumVideo" controls playsinline style="display:none;width:100%;max-height:380px;border-radius:10px;background:#000;margin-top:.6rem"></video>
     <div class="tablewrap"><table class="tbl" id="sumList"></table></div>
     <div class="row" style="margin-top:.8rem"><button id="btnCopyAll">Copy all answers for Claude</button><button id="btnScoreAll" style="display:none">Score remaining with Claude</button><span class="status" id="sumStatus" style="margin:0"></span></div>
   </section>
@@ -219,6 +231,8 @@ details>summary{cursor:pointer;font-weight:700}
         <input type="text" id="setName"></label>
       <label class="f">About me (short background so Claude can judge answers fairly)
         <textarea id="setAbout" placeholder="Filled automatically when you import your private question pack."></textarea></label>
+      <label class="f">Interviewer voice (for reading questions aloud)
+        <select id="setVoice"><option value="">Default voice</option></select></label>
       <label class="f">Claude API key (optional: lets every answer be scored automatically)
         <input type="password" id="setKey" placeholder="sk-ant-..." autocomplete="off"></label>
       <label class="f">Claude model
@@ -239,7 +253,7 @@ details>summary{cursor:pointer;font-weight:700}
     </details>
   </section>
 
-  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 6.</p>
+  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 7.</p>
 </div>
 
 <script>
@@ -254,7 +268,7 @@ const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
 
 // ---------- settings and saved data ----------
-let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true},store.get("settings_v1",{}));
+let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true,voice:"",speak:true,show:true,video:true},store.get("settings_v1",{}));
 let mine=store.get("mine_v2",null);
 if(!mine){mine={profile:"",questions:store.get("myq_v1",[]).map(q=>({q,cat:"My questions"}))};store.set("mine_v2",mine)}
 let results=store.get("results_v1",[]);
@@ -278,6 +292,29 @@ function pool(cat){if(cat==="My questions")return mine.questions.map(o=>({q:o.q,
 const isRapid=cat=>cat==="Rapid fire";
 const targetFor=cat=>isRapid(cat)?[10,45]:[45,150];
 
+// ---------- spoken questions ----------
+let voices=[];
+function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));$("setVoice").innerHTML='<option value="">Default voice</option>'+voices.map(v=>`<option${v.name===settings.voice?" selected":""}>${esc(v.name)}</option>`).join("")}
+if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>x.name===settings.voice)||voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=.95;u.onend=u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,Math.max(5000,text.length*110))})}
+function spokenText(it){
+  if(!session||!it.role||it.drill)return it.q;const prev=session.i>0?session.items[session.i-1].role:null;
+  if(prev===it.role)return it.q;
+  const intro={"Program Director":"Hello, I am the program director. Thank you for joining us today. ","Associate Program Director":"Hi, I am one of the associate program directors. ","Faculty (rapid fire)":"Hi, I am a faculty member. I will ask you some quick questions. Short answers are fine. ","Faculty":"Now let's talk through some clinical situations. ","Resident":"Hi, I am one of the residents here. ","Program Coordinator":"Hello, I am the program coordinator. ","Closing":"We are almost done. "}[it.role]||"";
+  return intro+it.q;
+}
+function showQText(){if(!item)return;const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
+$("btnHear").onclick=()=>{if(item&&state==="idle")speak(item.q)};
+$("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
+["optSpeak","optShow","optVideo"].forEach(id=>$(id).onchange=()=>{settings.speak=$("optSpeak").checked;settings.show=$("optShow").checked;settings.video=$("optVideo").checked;store.set("settings_v1",settings);showQText()});
+
+// ---------- video recordings (kept in memory only) ----------
+const VIDS=new Map();let vr=null,vChunks=[];
+function attachVideo(r){if(!S.video)return;r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
+function showPlayback(r){const url=r&&r.vid&&VIDS.get(r.vid);$("playWrap").style.display=url?"":"none";$("playback").src=url||""}
+$("btnDlVid").onclick=()=>{const url=lastRec&&VIDS.get(lastRec.vid);if(!url)return;const a=document.createElement("a");a.href=url;a.download="answer-"+new Date(lastRec.t).toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm";a.click()};
+$("sumList").onclick=e=>{const b=e.target.closest("button[data-vid]");if(!b)return;const url=VIDS.get(+b.dataset.vid);if(url){const v=$("sumVideo");v.src=url;v.style.display="block";v.scrollIntoView({block:"center",behavior:"auto"});v.play().catch(()=>{})}};
+
 // ---------- state ----------
 let stream,modelsReady=false,state="idle",item=null,session=null,lastRec=null,autoTimer=null;
 let rec,audioCtx,analyser,tBuf,audioTimer,tickTimer,mr,audioChunks=[],whisper=null,S;
@@ -287,7 +324,7 @@ const EXP_COL={happy:"#3E9C7E",neutral:"#9AAAA6",surprised:"#5A8FC4",sad:"#7D6BB
 // ---------- question UI ----------
 function renderCats(){const v=$("cat").value;$("cat").innerHTML="";["Mixed",...cats()].forEach(c=>{const o=document.createElement("option");o.textContent=c;$("cat").appendChild(o)});if([...$("cat").options].some(o=>o.textContent===v))$("cat").value=v}
 function setItem(it){
-  item=it;$("question").className=it.drill?"q drillq":"q";$("question").textContent=it.drill?"Read aloud: "+it.q:it.q;
+  item=it;$("question").className=it.drill?"q drillq":"q";showQText();
   $("role").style.display=it.role?"":"none";$("role").textContent=it.role||"";
   $("tipsWrap").style.display=it.tips?"":"none";$("tips").style.display="none";$("btnTips").textContent="Show points to include";$("tips").textContent=it.tips||"";
   const t=it.target;$("timerNote").textContent=it.drill?"read clearly at a natural pace":t[1]<=45?"rapid fire: aim for 10 to 45 s":"aim for 1 to 2 min";
@@ -414,8 +451,9 @@ $("btnStart").onclick=startAnswer;
 async function startAnswer(){
   if(!stream||!item||state!=="idle")return;
   if(audioCtx.state==="suspended")await audioCtx.resume();
-  hideNav();clearTimeout(autoTimer);$("report").style.display="none";
+  hideNav();clearTimeout(autoTimer);$("report").style.display="none";$("playback").pause();$("sumVideo").pause();
   state="countdown";updateStart();$("btnStart").style.display="none";$("btnStop").style.display="";
+  if($("optSpeak").checked&&!item.drill){$("status").textContent="The interviewer is asking...";await speak(spokenText(item));if(state!=="countdown")return}
   if($("prep").checked){let left=2;$("timer").textContent="0:02";$("status").textContent="Look at the camera...";
     await new Promise(res=>{tickTimer=setInterval(()=>{left--;$("timer").textContent="0:0"+left;if(left<=0||state!=="countdown"){clearInterval(tickTimer);res()}},1000)});
     if(state!=="countdown")return;}
@@ -427,6 +465,8 @@ function beginRecording(){
   G.rolls=0;G.upLong=0;G.upFrames=0;G.awayFrames=0;G.n=0;if(gazer)$("lRoll").textContent="0";
   $("transcript").innerHTML="";audioChunks=[];
   try{mr=new MediaRecorder(new MediaStream(stream.getAudioTracks()));mr.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};mr.start(1000)}catch(e){mr=null}
+  vChunks=[];vr=null;
+  if($("optVideo").checked){try{const mt=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].find(x=>MediaRecorder.isTypeSupported(x));vr=new MediaRecorder(stream,{mimeType:mt,videoBitsPerSecond:600000});vr.ondataavailable=e=>{if(e.data.size)vChunks.push(e.data)};vr.start(1000)}catch(e){vr=null}}
   startSpeech();
   audioTimer=setInterval(audioTick,50);
   tickTimer=setInterval(()=>{const s=(performance.now()-S.t0)/1000;$("timer").textContent=fmt(s);const hi=item.target[1];$("timer").style.color=s>hi?"var(--bad)":s>hi*.85?"var(--warn)":"";liveSpeech()},500);
@@ -458,14 +498,16 @@ function speakMin(){if(S.firstVoice===null)return 0;const end=state==="recording
 function liveSpeech(){const t=textAll(),w=countWords(t);$("lWpm").textContent=w>8?Math.round(w/speakMin()):"--";$("lFill").textContent=countFill(t)}
 
 $("btnStop").onclick=async()=>{
-  if(state==="countdown"){clearInterval(tickTimer);state="idle";resetButtons();$("timer").textContent="0:00";$("status").textContent="";return}
+  if(state==="countdown"){if("speechSynthesis" in window)speechSynthesis.cancel();clearInterval(tickTimer);state="idle";resetButtons();$("timer").textContent="0:00";$("status").textContent="";return}
   if(state!=="recording")return;
   state="processing";clearInterval(audioTimer);clearInterval(tickTimer);try{rec&&rec.stop()}catch(e){}
   $("rec").style.display="none";$("btnStop").style.display="none";$("timer").style.color="";
   S.dur=(performance.now()-S.t0)/1000;
   const stopped=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
   previewLoop();
-  await new Promise(r=>setTimeout(r,700));await stopped;
+  const vStopped=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
+  await new Promise(r=>setTimeout(r,700));await stopped;await vStopped;
+  S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;
   S.interim="";S.liveText=textAll();
   if(audioChunks.length){
     try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));if(countWords(t)>=Math.min(3,countWords(S.liveText))){S.finals=[t];S.local=true}}
@@ -558,7 +600,7 @@ function finishAnswer(){
   if(!t){r.english=null;r.englishLocal=null}
   calcOverall(r);
   results.push(r);if(results.length>300)results=results.slice(-300);store.set("results_v1",results);
-  if(session)session.recs.push(r);lastRec=r;
+  attachVideo(r);if(session)session.recs.push(r);lastRec=r;showPlayback(r);
   $("repTitle").textContent="Your score";$("drillOut").innerHTML="";$("expWrap").style.display="";$("aiWrap").style.display="";
   renderScores(r);
   $("metrics").innerHTML=`<h3 class="group">Delivery (face, eyes, voice)</h3><div class="metrics">${cards(F.D)}</div><h3 class="group">English clarity</h3><div class="metrics">${cards(EN.E)||'<p class="status">No speech captured.</p>'}</div>`;
@@ -581,7 +623,7 @@ function renderScores(r){
 function finishDrill(){
   const t=textAll(),A=align(item.q,t),acc=Math.round(Math.max(0,1-A.wer)*100),EN=englishMetrics(t);
   const r={t:Date.now(),mode:"drill",role:"",cat:"English drill",q:item.q,dur:Math.round(S.dur),text:t,delivery:null,english:acc,content:null,overall:acc,contentSrc:"quick",wpm:EN.wpm,fillers:EN.fill,rolls:null,facing:null};
-  results.push(r);store.set("results_v1",results);if(session)session.recs.push(r);lastRec=r;
+  results.push(r);store.set("results_v1",results);attachVideo(r);if(session)session.recs.push(r);lastRec=r;showPlayback(r);
   $("repTitle").textContent="Read-aloud clarity";$("sOverall").textContent=acc;$("sContent").textContent="--";$("sEnglish").textContent=acc;$("sDelivery").textContent="--";$("sContentL").textContent="Content";
   $("scoreNote").textContent=acc>=95?"Very clear. Every word was understood.":acc>=85?"Clear overall. Practice the underlined words.":"Several words were not understood. Say the underlined words slowly, stressing each syllable, then read the sentence again.";
   const words=A.ops.map(o=>o.ok?esc(o.w):`<span class="miss">${esc(o.w)}${o.heard?` <small>(heard: ${esc(o.heard)})</small>`:` <small>(missed)</small>`}</span>`).join(" ");
@@ -657,7 +699,7 @@ function showSummary(){
   const roles=[...new Set(R.map(r=>r.role))].filter(Boolean);
   $("sumRoles").innerHTML=roles.length>1?"<tr><th>Interviewer</th><th>Answers</th><th>Avg overall</th></tr>"+roles.map(ro=>{const rr=R.filter(r=>r.role===ro);const v=avg(rr.map(r=>r.overall));return `<tr><td>${esc(ro)}</td><td>${rr.length}</td><td>${v==null?"--":Math.round(v)}</td></tr>`}).join(""):"";
   const sorted=R.map((r,i)=>({r,i})).sort((x,y)=>(x.r.overall??999)-(y.r.overall??999));
-  $("sumList").innerHTML="<tr><th>#</th><th>Question</th><th>Overall</th><th>Content</th><th>English</th><th>Delivery</th></tr>"+R.map((r,i)=>`<tr${sorted.slice(0,3).some(s=>s.i===i)&&R.length>3?' style="background:color-mix(in srgb,var(--warn) 12%,transparent)"':""}><td>${i+1}</td><td>${esc(r.q)}</td><td>${r.overall??"--"}</td><td>${r.content??"--"}${r.contentSrc==="ai"?"":r.content!=null?"*":""}</td><td>${r.english??"--"}</td><td>${r.delivery??"--"}</td></tr>`).join("");
+  $("sumList").innerHTML="<tr><th>#</th><th>Question</th><th>Overall</th><th>Content</th><th>English</th><th>Delivery</th><th>Video</th></tr>"+R.map((r,i)=>`<tr${sorted.slice(0,3).some(s=>s.i===i)&&R.length>3?' style="background:color-mix(in srgb,var(--warn) 12%,transparent)"':""}><td>${i+1}</td><td>${esc(r.q)}</td><td>${r.overall??"--"}</td><td>${r.content??"--"}${r.contentSrc==="ai"?"":r.content!=null?"*":""}</td><td>${r.english??"--"}</td><td>${r.delivery??"--"}</td><td>${r.vid&&VIDS.has(r.vid)?`<button class="link" data-vid="${r.vid}">Play</button>`:"--"}</td></tr>`).join("");
   const pending=R.filter(r=>r.text&&r.mode!=="drill"&&r.contentSrc!=="ai");
   $("btnScoreAll").style.display=aiAvailable()&&pending.length?"":"none";
   $("sumStatus").textContent=(pending.length?"* quick estimate. ":"")+(R.length>3?"Highlighted rows are your 3 weakest answers.":"");
@@ -691,7 +733,7 @@ $("btnClearHist").onclick=()=>{if(confirm("Delete all saved scores from this bro
 
 // ---------- settings ----------
 function loadSettingsUI(){$("setSpec").value=settings.specialty;$("setProg").value=settings.program;$("setName").value=settings.name;$("setAbout").value=settings.about||mine.profile||"";$("setKey").value=settings.apiKey;$("setModel").value=settings.model;$("setAuto").checked=settings.autoAI}
-$("btnSaveSet").onclick=()=>{settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
+$("btnSaveSet").onclick=()=>{settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked,voice:$("setVoice").value,speak:$("optSpeak").checked,show:$("optShow").checked,video:$("optVideo").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
 $("fileImport").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const j=JSON.parse(await f.text());const qs=(j.questions||[]).filter(x=>x&&x.q).map(x=>({q:String(x.q),tips:x.tips?String(x.tips):"",cat:"My questions"}));
@@ -708,6 +750,7 @@ $("btnUse").onclick=()=>{const v=$("custom").value.trim();if(!v)return;$("mode")
 $("btnSave").onclick=()=>{const v=$("custom").value.trim();if(!v)return;if(!mine.questions.some(x=>x.q===v))mine.questions.push({q:v,cat:"My questions"});store.set("mine_v2",mine);renderCats();$("custom").value="";$("myNote").textContent="Saved under My questions."};
 $("btnWipe").onclick=()=>{if(confirm("Delete your settings, API key, private questions and all scores from this browser?")){["settings_v1","mine_v2","myq_v1","results_v1"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});location.reload()}};
 
+$("optSpeak").checked=settings.speak!==false;$("optShow").checked=settings.show!==false;$("optVideo").checked=settings.video!==false;
 renderCats();loadSettingsUI();renderHistory();$("mode").onchange();
 </script>
 </body>
