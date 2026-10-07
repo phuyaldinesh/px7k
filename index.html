@@ -97,6 +97,8 @@ mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;bor
 .tbl th,.tbl td{text-align:left;padding:.35rem .4rem;border-bottom:1px solid var(--line);vertical-align:top}
 .tablewrap{overflow-x:auto}
 details>summary{cursor:pointer;font-weight:700}
+body.real #timer,body.real #timerNote,body.real .live,body.real #transcript,body.real #tipsWrap,body.real #qCtl,body.real .opts,body.real #prepLbl,body.real .flash{display:none!important}
+body.real .q{font-weight:400;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -115,6 +117,7 @@ details>summary{cursor:pointer;font-weight:700}
         <option value="rapid">Rapid fire (8 quick questions)</option>
         <option value="mini">Mini mock interview (6 questions)</option>
         <option value="full">Full interview day (5 interviewers, about 25 questions)</option>
+        <option value="real">Real interview (no question text, no timer, scores at the end)</option>
         <option value="drill">English clarity drill (read aloud)</option>
       </select>
       <button class="primary" id="btnSession" style="display:none">Start session</button>
@@ -152,7 +155,7 @@ details>summary{cursor:pointer;font-weight:700}
       <span class="role" id="role" style="display:none"></span>
       <p class="q" id="question">Pick a practice type above. For single questions, choose a category and press New question.</p>
       <div class="row" id="qCtl"><button id="btnHear">&#128264; Hear question</button><button id="btnReveal" style="display:none">Show question</button></div>
-      <div class="row" style="margin-top:.5rem;font-size:.9rem;gap:.9rem">
+      <div class="row opts" style="margin-top:.5rem;font-size:.9rem;gap:.9rem">
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optSpeak"> Read questions aloud</label>
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optShow"> Show question text</label>
         <label class="row" style="gap:.3rem"><input type="checkbox" id="optVideo"> Record video</label>
@@ -161,9 +164,10 @@ details>summary{cursor:pointer;font-weight:700}
       <div class="row" style="justify-content:space-between;margin-top:1rem">
         <div class="timer"><span id="timer">0:00</span> <small id="timerNote"></small></div>
         <div class="row">
-          <label class="row" style="gap:.3rem;font-size:.9rem"><input type="checkbox" id="prep" checked> 2 s countdown</label>
+          <label class="row" id="prepLbl" style="gap:.3rem;font-size:.9rem"><input type="checkbox" id="prep" checked> 2 s countdown</label>
           <button class="primary" id="btnStart" disabled>Start answer</button>
           <button class="stop" id="btnStop" style="display:none">Stop</button>
+          <button id="btnEndReal" style="display:none">End interview</button>
         </div>
       </div>
       <div class="status" id="status"></div>
@@ -209,7 +213,7 @@ details>summary{cursor:pointer;font-weight:700}
     <div class="tablewrap"><table class="tbl" id="sumRoles"></table></div>
     <video id="sumVideo" controls playsinline style="display:none;width:100%;max-height:380px;border-radius:10px;background:#000;margin-top:.6rem"></video>
     <div class="tablewrap"><table class="tbl" id="sumList"></table></div>
-    <div class="row" style="margin-top:.8rem"><button id="btnCopyAll">Copy all answers for Claude</button><button id="btnScoreAll" style="display:none">Score remaining with Claude</button><span class="status" id="sumStatus" style="margin:0"></span></div>
+    <div class="row" style="margin-top:.8rem"><button id="btnDlAll">Download all videos</button><button id="btnCopyAll">Copy all answers for Claude</button><button id="btnScoreAll" style="display:none">Score remaining with Claude</button><span class="status" id="sumStatus" style="margin:0"></span></div>
   </section>
 
   <section class="panel section" id="histPanel" style="display:block">
@@ -253,7 +257,7 @@ details>summary{cursor:pointer;font-weight:700}
     </details>
   </section>
 
-  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 7.</p>
+  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 8.</p>
 </div>
 
 <script>
@@ -303,7 +307,8 @@ function spokenText(it){
   const intro={"Program Director":"Hello, I am the program director. Thank you for joining us today. ","Associate Program Director":"Hi, I am one of the associate program directors. ","Faculty (rapid fire)":"Hi, I am a faculty member. I will ask you some quick questions. Short answers are fine. ","Faculty":"Now let's talk through some clinical situations. ","Resident":"Hi, I am one of the residents here. ","Program Coordinator":"Hello, I am the program coordinator. ","Closing":"We are almost done. "}[it.role]||"";
   return intro+it.q;
 }
-function showQText(){if(!item)return;const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
+const isReal=()=>!!(session&&session.mode==="real");
+function showQText(){if(!item)return;if(isReal()){$("question").textContent="Interview in progress. Listen and answer naturally.";$("btnReveal").style.display="none";return}const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
 $("btnHear").onclick=()=>{if(item&&state==="idle")speak(item.q)};
 $("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
 ["optSpeak","optShow","optVideo"].forEach(id=>$(id).onchange=()=>{settings.speak=$("optSpeak").checked;settings.show=$("optShow").checked;settings.video=$("optVideo").checked;store.set("settings_v1",settings);showQText()});
@@ -313,7 +318,10 @@ const VIDS=new Map();let vr=null,vChunks=[];
 function attachVideo(r){if(!S.video)return;r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
 function showPlayback(r){const url=r&&r.vid&&VIDS.get(r.vid);$("playWrap").style.display=url?"":"none";$("playback").src=url||""}
 $("btnDlVid").onclick=()=>{const url=lastRec&&VIDS.get(lastRec.vid);if(!url)return;const a=document.createElement("a");a.href=url;a.download="answer-"+new Date(lastRec.t).toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm";a.click()};
-$("sumList").onclick=e=>{const b=e.target.closest("button[data-vid]");if(!b)return;const url=VIDS.get(+b.dataset.vid);if(url){const v=$("sumVideo");v.src=url;v.style.display="block";v.scrollIntoView({block:"center",behavior:"auto"});v.play().catch(()=>{})}};
+$("sumList").onclick=e=>{
+  const d=e.target.closest("button[data-dl]");if(d){const r=session.recs.find(x=>String(x.vid)===d.dataset.dl);const a=document.createElement("a");a.href=VIDS.get(r.vid);a.download="answer-"+r.q.replace(/[^a-z0-9]+/gi,"-").slice(0,40)+".webm";a.click();return}
+  const rv=e.target.closest("button[data-rev]");if(rv){renderReport(session.recs[+rv.dataset.rev],true);hideNav();$("btnNextQ").style.display="";$("btnNextQ").textContent="Back to summary";$("btnNextQ").onclick=()=>{$("btnNextQ").onclick=nextQ;$("report").style.display="none";$("summary").scrollIntoView({block:"start"})};return}
+  const b=e.target.closest("button[data-vid]");if(!b)return;const url=VIDS.get(session.recs.find(x=>String(x.vid)===b.dataset.vid).vid);if(url){const v=$("sumVideo");v.src=url;v.style.display="block";v.scrollIntoView({block:"center",behavior:"auto"});v.play().catch(()=>{})}};
 
 // ---------- state ----------
 let stream,modelsReady=false,state="idle",item=null,session=null,lastRec=null,autoTimer=null;
@@ -334,7 +342,7 @@ $("btnTips").onclick=()=>{const s=$("tips").style.display==="none";$("tips").sty
 function pickSingle(){const c=$("cat").value;let P=c==="Mixed"?Object.keys(QB).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
 $("btnNext").onclick=pickSingle;
 function updateStart(){$("btnStart").disabled=!(stream&&item&&state==="idle")}
-$("mode").onchange=()=>{const m=$("mode").value;clearTimeout(autoTimer);session=null;$("singleCtl").style.display=m==="single"?"":"none";$("btnSession").style.display=m==="single"?"none":"";$("btnSession").textContent=m==="drill"?"Start drill":"Start session";$("progress").textContent="";hideNav()};
+$("mode").onchange=()=>{const m=$("mode").value;setRealUI(false);clearTimeout(autoTimer);session=null;$("singleCtl").style.display=m==="single"?"":"none";$("btnSession").style.display=m==="single"?"none":"";$("btnSession").textContent=m==="drill"?"Start drill":m==="real"?"Set up interview":"Start session";$("progress").textContent="";hideNav()};
 
 // ---------- sessions ----------
 function take(cat,n,used){const P=shuffle(pool(cat)).filter(x=>!used.has(x.q)).slice(0,n);P.forEach(x=>used.add(x.q));return P}
@@ -343,7 +351,7 @@ function buildSession(mode){
   const mineN=n=>mine.questions.length?take("My questions",n,used):[];
   if(mode==="rapid")add("Rapid fire",take("Rapid fire",8,used));
   if(mode==="mini"){used.add("Tell me about yourself.");add("Program Director",[{q:"Tell me about yourself.",cat:"Getting to know you"}]);add("Associate Program Director",take("Behavioral",1,used));add("Faculty",take("Pediatric scenarios",1,used));add("Faculty (rapid fire)",take("Rapid fire",2,used));add("Program Coordinator",take("Program and advocacy",1,used))}
-  if(mode==="full"){
+  if(mode==="full"||mode==="real"){
     used.add("Tell me about yourself.");
     add("Program Director",[{q:"Tell me about yourself.",cat:"Getting to know you"},...take("Getting to know you",3,used),...take("Visa and gaps (general)",1,used),...mineN(1)]);
     add("Associate Program Director",[...take("Behavioral",4,used),...mineN(1)]);
@@ -354,18 +362,22 @@ function buildSession(mode){
     add("Closing",take("Closing",1,used));
   }
   if(mode==="drill")shuffle(DRILL).slice(0,8).forEach(q=>items.push({q,cat:"English drill",drill:true,role:"English clarity drill",target:[3,20]}));
-  return {mode,items,i:0,recs:[]};
+  return {mode,items,i:0,recs:[],queue:[]};
 }
 $("btnSession").onclick=()=>{
   if(!stream){$("status").textContent="Turn on the camera and mic first.";return}
-  clearTimeout(autoTimer);session=buildSession($("mode").value);$("summary").style.display="none";$("report").style.display="none";loadItem();
+  clearTimeout(autoTimer);session=buildSession($("mode").value);$("summary").style.display="none";$("report").style.display="none";
+  setRealUI(isReal());loadItem();
 };
-function loadItem(){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
+function setRealUI(on){document.body.classList.toggle("real",on);$("btnStart").textContent=on?"Begin interview":"Start answer";$("btnStop").textContent=on?"Done, next question":"Stop";$("btnEndReal").style.display=on?"":"none";
+  if(on)$("status").textContent="Press Begin interview. Each question is spoken, then recording starts right away. When you finish an answer, press Done (or the space bar), or stay silent for 7 seconds.";}
+function loadItem(){if(isReal()){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");if(session.i>0)startAnswer();return}
+const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
   if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="New interviewer: "+it.role+".";
   if(isRapid(it.cat)&&session.i>0&&isRapid(session.items[session.i-1].cat))startAnswer();}
 function hideNav(){["btnNextQ","btnPause","btnEnd"].forEach(b=>$(b).style.display="none")}
 function showNav(){
-  hideNav();if(!session)return;const last=session.i>=session.items.length-1;
+  $("btnNextQ").onclick=nextQ;hideNav();if(!session)return;const last=session.i>=session.items.length-1;
   $("btnNextQ").style.display="";$("btnNextQ").textContent=last?"See session summary":"Next question";$("btnEnd").style.display=last?"none":"";
   if(!last&&isRapid(item.cat)&&isRapid(session.items[session.i+1].cat)){let n=4;$("btnPause").style.display="";const tick=()=>{$("btnNextQ").textContent="Next in "+n+"…";if(n--<=0){nextQ();return}autoTimer=setTimeout(tick,1000)};tick();}
 }
@@ -453,14 +465,15 @@ async function startAnswer(){
   if(audioCtx.state==="suspended")await audioCtx.resume();
   hideNav();clearTimeout(autoTimer);$("report").style.display="none";$("playback").pause();$("sumVideo").pause();
   state="countdown";updateStart();$("btnStart").style.display="none";$("btnStop").style.display="";
-  if($("optSpeak").checked&&!item.drill){$("status").textContent="The interviewer is asking...";await speak(spokenText(item));if(state!=="countdown")return}
-  if($("prep").checked){let left=2;$("timer").textContent="0:02";$("status").textContent="Look at the camera...";
+  if(isReal())$("btnStop").style.display="none";
+  if(($("optSpeak").checked||isReal())&&!item.drill){$("status").textContent="The interviewer is asking...";await speak(spokenText(item));if(state!=="countdown")return}
+  if($("prep").checked&&!isReal()){let left=2;$("timer").textContent="0:02";$("status").textContent="Look at the camera...";
     await new Promise(res=>{tickTimer=setInterval(()=>{left--;$("timer").textContent="0:0"+left;if(left<=0||state!=="countdown"){clearInterval(tickTimer);res()}},1000)});
     if(state!=="countdown")return;}
   beginRecording();
 }
 function beginRecording(){
-  state="recording";$("rec").style.display="flex";$("status").textContent=item.drill?"Read the sentence, then press Stop.":"Speak to the camera. Press Stop when finished.";
+  state="recording";$("rec").style.display="flex";$("btnStop").style.display="";$("status").textContent=isReal()?"Recording. Press Done or the space bar when you finish.":item.drill?"Read the sentence, then press Stop.":"Speak to the camera. Press Stop when finished.";
   S={t0:performance.now(),frames:0,face:0,facing:0,exp:{},move:0,lastNose:null,finals:[],conf:[],interim:"",voiceT:0,firstVoice:null,lastVoice:null,silStart:null,pauses:0,longPauses:0,floor:1,rmsSum:0,rmsSq:0,rmsN:0};
   G.rolls=0;G.upLong=0;G.upFrames=0;G.awayFrames=0;G.n=0;if(gazer)$("lRoll").textContent="0";
   $("transcript").innerHTML="";audioChunks=[];
@@ -480,6 +493,7 @@ function audioTick(){
     if(S.silStart!==null){const g=(now-S.silStart)/1000;if(g>=2)S.pauses++;if(g>=4)S.longPauses++}
     S.silStart=null;S.lastVoice=now;S.voiceT+=50;S.rmsSum+=rms;S.rmsSq+=rms*rms;S.rmsN++;
   }else if(S.silStart===null&&S.firstVoice!==null)S.silStart=now;
+  if(isReal()&&state==="recording"&&S.voiceT>5000&&S.silStart!==null&&now-S.silStart>7000)stopRealAnswer();
 }
 function startSpeech(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;
@@ -500,6 +514,7 @@ function liveSpeech(){const t=textAll(),w=countWords(t);$("lWpm").textContent=w>
 $("btnStop").onclick=async()=>{
   if(state==="countdown"){if("speechSynthesis" in window)speechSynthesis.cancel();clearInterval(tickTimer);state="idle";resetButtons();$("timer").textContent="0:00";$("status").textContent="";return}
   if(state!=="recording")return;
+  if(isReal()){stopRealAnswer();return}
   state="processing";clearInterval(audioTimer);clearInterval(tickTimer);try{rec&&rec.stop()}catch(e){}
   $("rec").style.display="none";$("btnStop").style.display="none";$("timer").style.color="";
   S.dur=(performance.now()-S.t0)/1000;
@@ -589,28 +604,34 @@ function englishMetrics(t){
   if(S.local&&sents.length>1)add("Sentence length",longS?longS+" very long":"Good",longS?"warn":"ok",longS?"Some sentences ran very long. Short sentences are easier to follow on a video call.":"Sentences were easy to follow.",longS?75:100);
   return {E,sub,wpm,fill,fpm,conf,agree};
 }
-function finishAnswer(){
+const HTML=new Map();
+function buildAnswerRecord(){
   const t=textAll(),F=faceMetrics(),EN=englishMetrics(t);
   const delivery=F.sub.length?Math.round(avg(F.sub)):null,englishLocal=EN.sub.length?Math.round(avg(EN.sub)):null;
   const qc=t?quickContent(t,item.cat,S.dur,item.target):null;
-  const r={t:Date.now(),mode:session?session.mode:"single",role:item.role||"",cat:item.cat,q:item.q,dur:Math.round(S.dur),text:t.slice(0,3000),
+  const r={t:Date.now()+Math.random(),mode:session?session.mode:"single",role:item.role||"",cat:item.cat,q:item.q,dur:Math.round(S.dur),text:t.slice(0,3000),
     delivery,englishLocal,english:englishLocal,content:qc!=null?Math.round(qc*10):null,contentSrc:"quick",aiText:"",
     wpm:EN.wpm,fillers:EN.fill,rolls:gazer&&G.n?G.rolls:null,facing:F.facingP!=null?Math.round(F.facingP*100):null,
     metrics:{duration:fmt(S.dur),wordsPerMinute:EN.wpm,fillers:EN.fill,fillersPerMin:+EN.fpm.toFixed(1),eyeContactPct:F.facingP!=null?Math.round(F.facingP*100):null,smilingPct:Math.round(F.exp.happy*100),tensePct:Math.round(F.tense*100),eyeRolls:gazer&&G.n?G.rolls:null,lookingUpPct:gazer&&G.n?Math.round(100*G.upFrames/G.n):null,pausesOver2s:S.pauses,pausesOver4s:S.longPauses,understandabilityPct:EN.agree!=null?Math.round(EN.agree*100):null},target:item.target};
   if(!t){r.english=null;r.englishLocal=null}
   calcOverall(r);
   results.push(r);if(results.length>300)results=results.slice(-300);store.set("results_v1",results);
-  attachVideo(r);if(session)session.recs.push(r);lastRec=r;showPlayback(r);
-  $("repTitle").textContent="Your score";$("drillOut").innerHTML="";$("expWrap").style.display="";$("aiWrap").style.display="";
-  renderScores(r);
-  $("metrics").innerHTML=`<h3 class="group">Delivery (face, eyes, voice)</h3><div class="metrics">${cards(F.D)}</div><h3 class="group">English clarity</h3><div class="metrics">${cards(EN.E)||'<p class="status">No speech captured.</p>'}</div>`;
-  $("expBar").innerHTML=Object.keys(EXP_COL).filter(n=>F.exp[n]>.005).map(n=>`<span style="width:${F.exp[n]*100}%;background:${EXP_COL[n]}" title="${n}"></span>`).join("")||'<span style="width:100%;background:var(--line)"></span>';
-  $("expLegend").innerHTML=Object.keys(EXP_COL).filter(n=>F.exp[n]>.01).map(n=>`<span><i style="background:${EXP_COL[n]}"></i>${n} ${Math.round(F.exp[n]*100)}%</span>`).join("");
-  $("aiOut").innerHTML="";$("aiStatus").textContent=t?"":"No transcript was captured, so content can't be scored.";
-  $("btnAI").style.display=aiAvailable()?"":"none";$("btnAI").disabled=!t;$("btnCopy").disabled=!t;
+  attachVideo(r);if(session)session.recs.push(r);
+  const bar=Object.keys(EXP_COL).filter(n=>F.exp[n]>.005).map(n=>`<span style="width:${F.exp[n]*100}%;background:${EXP_COL[n]}" title="${n}"></span>`).join("")||'<span style="width:100%;background:var(--line)"></span>';
+  const leg=Object.keys(EXP_COL).filter(n=>F.exp[n]>.01).map(n=>`<span><i style="background:${EXP_COL[n]}"></i>${n} ${Math.round(F.exp[n]*100)}%</span>`).join("");
+  HTML.set(r.t,`<p class="status"><strong>Your answer:</strong> ${t?hl(t):"(no transcript)"}</p><h3 class="group">Delivery (face, eyes, voice)</h3><div class="metrics">${cards(F.D)}</div><h3 class="group">English clarity</h3><div class="metrics">${cards(EN.E)||'<p class="status">No speech captured.</p>'}</div><div style="margin-top:1rem"><strong>Expression mix</strong><div class="bar">${bar}</div><div class="legend">${leg}</div></div>`);
+  return r;
+}
+function renderReport(r,fromSummary){
+  lastRec=r;$("repTitle").textContent=fromSummary?"Answer review: "+r.q:"Your score";$("drillOut").innerHTML="";$("expWrap").style.display="none";$("aiWrap").style.display="";
+  renderScores(r);showPlayback(r);$("metrics").innerHTML=HTML.get(r.t)||"";
+  $("aiOut").innerHTML=r.aiText?md(r.aiText.replace(/^SCORES.*\n?/i,"")):"";$("aiStatus").textContent=r.text?"":"No transcript was captured, so content can't be scored.";
+  $("btnAI").style.display=aiAvailable()?"":"none";$("btnAI").disabled=!r.text;$("btnCopy").disabled=!r.text;
   $("report").style.display="block";$("report").scrollIntoView({behavior:"auto",block:"start"});
-  renderHistory();showNav();
-  if(t&&aiAvailable()&&settings.autoAI)scoreWithAI(r,true);
+}
+function finishAnswer(){
+  const r=buildAnswerRecord();renderReport(r);renderHistory();showNav();
+  if(r.text&&aiAvailable()&&settings.autoAI)scoreWithAI(r,true);
 }
 function calcOverall(r){if(r.content==null){r.overall=null;return}const parts=[[r.content,.45],[r.english,.25],[r.delivery,.30]].filter(p=>p[0]!=null);const w=parts.reduce((a,p)=>a+p[1],0);r.overall=w?Math.round(parts.reduce((a,p)=>a+p[0]*p[1],0)/w):null}
 function renderScores(r){
@@ -690,6 +711,44 @@ $("btnAI").onclick=()=>lastRec&&scoreWithAI(lastRec,true);
 async function copyText(s,el){try{await navigator.clipboard.writeText(s);el.textContent="Copied. Paste it into a Claude chat."}catch(e){$("aiOut").innerHTML="<p>Copy this into a Claude chat:</p><textarea style='min-height:12rem'>"+esc(s)+"</textarea>"}}
 $("btnCopy").onclick=()=>lastRec&&copyText(answerPrompt(lastRec),$("aiStatus"));
 
+// ---------- real interview ----------
+async function stopRealAnswer(){
+  if(state!=="recording")return;
+  state="processing";clearInterval(audioTimer);clearInterval(tickTimer);try{rec&&rec.stop()}catch(e){}
+  $("rec").style.display="none";$("btnStop").style.display="none";S.dur=(performance.now()-S.t0)/1000;
+  const a=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
+  const v=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
+  await new Promise(r=>setTimeout(r,500));await a;await v;
+  S.interim="";S.liveText=textAll();S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;
+  session.queue.push({S,G:{...G},item,audio:audioChunks});
+  state="idle";previewLoop();
+  if(session.ending||session.i>=session.items.length-1){processReal();return}
+  session.i++;loadItem();
+}
+$("btnEndReal").onclick=()=>{if(!isReal())return;session.ending=true;if(state==="recording")stopRealAnswer();else{if("speechSynthesis" in window)speechSynthesis.cancel();clearInterval(tickTimer);state="idle";resetButtons();processReal()}};
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&isReal()&&state==="recording"&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(document.activeElement.tagName)){e.preventDefault();stopRealAnswer()}});
+async function processReal(){
+  if(session.processing)return;session.processing=true;
+  setRealUI(false);$("btnStart").style.display="";$("btnStop").style.display="none";$("btnStart").disabled=true;
+  $("question").textContent="Interview finished. Scoring your answers...";
+  const Q=session.queue;session.queue=[];
+  for(let k=0;k<Q.length;k++){
+    const p=Q[k];S=p.S;item=p.item;Object.assign(G,p.G);
+    $("progress").textContent=`Scoring answer ${k+1} of ${Q.length}...`;
+    if(p.audio.length){try{const t=await localTranscribe(new Blob(p.audio,{type:p.audio[0].type}));if(countWords(t)>=Math.min(3,countWords(S.liveText))){S.finals=[t];S.local=true}}catch(e){}}
+    buildAnswerRecord();
+  }
+  $("status").textContent="";$("question").textContent="Interview finished. Review your answers below.";
+  renderHistory();showSummary();
+  if(aiAvailable()&&settings.autoAI){const P=session.recs.filter(r=>r.text&&r.contentSrc!=="ai");for(let i=0;i<P.length;i++){$("sumStatus").textContent=`Claude is scoring answer ${i+1} of ${P.length}...`;await scoreWithAI(P[i],false)}showSummary()}
+  session.processing=false;
+}
+$("btnDlAll").onclick=async()=>{
+  if(!session)return;const R=session.recs.filter(r=>r.vid&&VIDS.has(r.vid));if(!R.length){$("sumStatus").textContent="No videos in this session.";return}
+  $("sumStatus").textContent="Downloading "+R.length+" videos. If Chrome asks, choose Allow multiple downloads.";
+  for(let i=0;i<R.length;i++){const a=document.createElement("a");a.href=VIDS.get(R[i].vid);a.download=`interview-${String(i+1).padStart(2,"0")}-${R[i].q.replace(/[^a-z0-9]+/gi,"-").slice(0,40)}.webm`;a.click();await new Promise(r=>setTimeout(r,600))}
+};
+
 // ---------- summary ----------
 function showSummary(){
   clearTimeout(autoTimer);hideNav();if(!session)return;const R=session.recs;
@@ -699,7 +758,7 @@ function showSummary(){
   const roles=[...new Set(R.map(r=>r.role))].filter(Boolean);
   $("sumRoles").innerHTML=roles.length>1?"<tr><th>Interviewer</th><th>Answers</th><th>Avg overall</th></tr>"+roles.map(ro=>{const rr=R.filter(r=>r.role===ro);const v=avg(rr.map(r=>r.overall));return `<tr><td>${esc(ro)}</td><td>${rr.length}</td><td>${v==null?"--":Math.round(v)}</td></tr>`}).join(""):"";
   const sorted=R.map((r,i)=>({r,i})).sort((x,y)=>(x.r.overall??999)-(y.r.overall??999));
-  $("sumList").innerHTML="<tr><th>#</th><th>Question</th><th>Overall</th><th>Content</th><th>English</th><th>Delivery</th><th>Video</th></tr>"+R.map((r,i)=>`<tr${sorted.slice(0,3).some(s=>s.i===i)&&R.length>3?' style="background:color-mix(in srgb,var(--warn) 12%,transparent)"':""}><td>${i+1}</td><td>${esc(r.q)}</td><td>${r.overall??"--"}</td><td>${r.content??"--"}${r.contentSrc==="ai"?"":r.content!=null?"*":""}</td><td>${r.english??"--"}</td><td>${r.delivery??"--"}</td><td>${r.vid&&VIDS.has(r.vid)?`<button class="link" data-vid="${r.vid}">Play</button>`:"--"}</td></tr>`).join("");
+  $("sumList").innerHTML="<tr><th>#</th><th>Question</th><th>Overall</th><th>Content</th><th>English</th><th>Delivery</th><th>Video and review</th></tr>"+R.map((r,i)=>`<tr${sorted.slice(0,3).some(s=>s.i===i)&&R.length>3?' style="background:color-mix(in srgb,var(--warn) 12%,transparent)"':""}><td>${i+1}</td><td>${esc(r.q)}</td><td>${r.overall??"--"}</td><td>${r.content??"--"}${r.contentSrc==="ai"?"":r.content!=null?"*":""}</td><td>${r.english??"--"}</td><td>${r.delivery??"--"}</td><td>${r.vid&&VIDS.has(r.vid)?`<button class="link" data-vid="${r.vid}">Play</button> <button class="link" data-dl="${r.vid}">Download</button>`:"--"}${HTML.has(r.t)?` <button class="link" data-rev="${i}">Review</button>`:""}</td></tr>`).join("");
   const pending=R.filter(r=>r.text&&r.mode!=="drill"&&r.contentSrc!=="ai");
   $("btnScoreAll").style.display=aiAvailable()&&pending.length?"":"none";
   $("sumStatus").textContent=(pending.length?"* quick estimate. ":"")+(R.length>3?"Highlighted rows are your 3 weakest answers.":"");

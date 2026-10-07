@@ -1,4 +1,4 @@
-# Practice app guide (Version 7)
+# Practice app guide (Version 8)
 
 ## The files
 
@@ -13,7 +13,7 @@
 2. Click **Add file**, then **Upload files**.
 3. Drag in **index.html** only, then click **Commit changes**.
 4. Wait 2 minutes, open https://phuyaldinesh.github.io/px7k/ and press Ctrl + Shift + R (Mac: Cmd + Shift + R).
-5. The bottom of the page should say **Version 7**.
+5. The bottom of the page should say **Version 8**.
 
 ## 2. Load your private questions (one time)
 1. On the app page, open **Settings and private data** at the bottom.
@@ -38,6 +38,7 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 - **Rapid fire:** 8 quick questions. The next question starts by itself 4 seconds after each answer. Press **Pause** to stop the auto-advance.
 - **Mini mock:** 6 questions across the interviewer types.
 - **Full interview day:** about 25 questions in order: Program Director, Associate Program Director, Faculty (rapid fire), Faculty, Resident, Program Coordinator, closing. Plan about 60 to 90 minutes. Press **End session** any time to see your summary.
+- **Real interview:** feels like the real day. No question text, no timer, no tips, no scores in between. Press **Begin interview**; each interviewer speaks, recording starts immediately, and you answer. Press **Done, next question** (or the space bar), or stay silent for 7 seconds, to move on. Press **End interview** to stop early. All scores, videos and feedback appear at the end.
 - **English clarity drill:** read 8 pediatric sentences aloud. Words that were not understood are underlined, so you know exactly which words to practice.
 
 ## 5. Spoken questions and video
@@ -45,7 +46,9 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 - **Show question text:** untick it to practice like a real interview (listen only). Click **Show question** if you need to read it.
 - **Hear question:** repeats the question.
 - **Record video:** after each answer, watch yourself under **Watch your answer**. In the session summary, click **Play** next to any answer.
-- Videos stay on the laptop and are deleted when you reload the page. Click **Download video** to keep one (.webm file; opens in Chrome or VLC).
+- To save videos: click **Download video** under any answer, **Download** next to an answer in the session summary, or **Download all videos** to save the whole session. If Chrome asks, choose **Allow** multiple downloads. Files are .webm and open in Chrome or VLC.
+- Videos stay on the laptop and are deleted when you reload the page unless you download them.
+- In the summary, **Review** opens the full feedback for any answer.
 
 ## 6. How each answer is scored (0 to 100)
 - **Content:** structure, specific examples, insight, fit with pediatrics. Scored by Claude, or a quick estimate marked with *.
