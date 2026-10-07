@@ -188,7 +188,7 @@ body.real .q{font-weight:400;color:var(--muted)}
     <div id="playWrap" style="display:none;margin-top:.6rem">
       <strong>Watch your answer</strong>
       <video id="playback" controls playsinline style="display:block;width:100%;max-height:420px;border-radius:10px;background:#000;margin-top:.4rem"></video>
-      <div class="row" style="margin-top:.4rem"><button id="btnDlVid">Download video</button><span class="status" style="margin:0">Videos stay on this laptop and disappear when you reload the page. Download any you want to keep.</span></div>
+      <div class="row" style="margin-top:.4rem"><button id="btnDlVid">Download video</button><button id="btnPack1">Download for Claude</button><span class="status" style="margin:0">Videos stay on this laptop and disappear when you reload the page. Download any you want to keep.</span></div>
     </div>
     <div id="drillOut"></div>
     <div id="metrics"></div>
@@ -214,7 +214,7 @@ body.real .q{font-weight:400;color:var(--muted)}
     <div class="tablewrap"><table class="tbl" id="sumRoles"></table></div>
     <video id="sumVideo" controls playsinline style="display:none;width:100%;max-height:380px;border-radius:10px;background:#000;margin-top:.6rem"></video>
     <div class="tablewrap"><table class="tbl" id="sumList"></table></div>
-    <div class="row" style="margin-top:.8rem"><button id="btnDlAll">Download all videos</button><button id="btnCopyAll">Copy all answers for Claude</button><button id="btnScoreAll" style="display:none">Score remaining with Claude</button><span class="status" id="sumStatus" style="margin:0"></span></div>
+    <div class="row" style="margin-top:.8rem"><button id="btnDlAll">Download all videos</button><button class="primary" id="btnPack">Download Claude feedback pack</button><button id="btnCopyAll">Copy all answers for Claude</button><button id="btnScoreAll" style="display:none">Score remaining with Claude</button><span class="status" id="sumStatus" style="margin:0"></span></div>
   </section>
 
   <section class="panel section" id="histPanel" style="display:block">
@@ -237,7 +237,13 @@ body.real .q{font-weight:400;color:var(--muted)}
       <label class="f">About me (short background so Claude can judge answers fairly)
         <textarea id="setAbout" placeholder="Filled automatically when you import your private question pack."></textarea></label>
       <label class="f">Interviewer voice (for reading questions aloud)
-        <select id="setVoice"><option value="">Default voice</option></select></label>
+        <select id="setVoice">
+          <option value="auto">Different voice for each interviewer (recommended)</option>
+          <option value="af_heart">Female, American</option><option value="am_michael">Male, American</option>
+          <option value="af_bella">Female, American 2</option><option value="am_adam">Male, American 2</option>
+          <option value="bf_emma">Female, British</option><option value="bm_george">Male, British</option>
+          <option value="browser">Browser voice (fast, but not saved in videos)</option>
+        </select><span class="status" id="voiceNote" style="display:block"></span></label>
       <label class="f">Claude API key (optional: lets every answer be scored automatically)
         <input type="password" id="setKey" placeholder="sk-ant-..." autocomplete="off"></label>
       <label class="f">Claude model
@@ -258,7 +264,7 @@ body.real .q{font-weight:400;color:var(--muted)}
     </details>
   </section>
 
-  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 9.</p>
+  <p class="note">Best in Google Chrome on a laptop. Face, eye-roll and clarity readings are estimates. English clarity measures how understandable your speech is, not your accent. Version 10.</p>
 </div>
 
 <script>
@@ -273,7 +279,7 @@ const rnd=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b};
 
 // ---------- settings and saved data ----------
-let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true,voice:"",speak:true,show:true,video:true,autoDl:true},store.get("settings_v1",{}));
+let settings=Object.assign({specialty:"Pediatrics",program:"",name:"",about:"",apiKey:"",model:"claude-sonnet-5-5",autoAI:true,voice:"auto",speak:true,show:true,video:true,autoDl:true},store.get("settings_v1",{}));
 let mine=store.get("mine_v2",null);
 if(!mine){mine={profile:"",questions:store.get("myq_v1",[]).map(q=>({q,cat:"My questions"}))};store.set("mine_v2",mine)}
 let results=store.get("results_v1",[]);
@@ -299,20 +305,67 @@ const targetFor=cat=>isRapid(cat)?[10,45]:[45,150];
 
 // ---------- spoken questions ----------
 let voices=[];
-function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));$("setVoice").innerHTML='<option value="">Default voice</option>'+voices.map(v=>`<option${v.name===settings.voice?" selected":""}>${esc(v.name)}</option>`).join("")}
+function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}
 if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
-function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>x.name===settings.voice)||voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=.95;u.onend=u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,Math.max(5000,text.length*110))})}
-function spokenText(it){
-  if(!session||!it.role||it.drill)return it.q;const prev=session.i>0?session.items[session.i-1].role:null;
+function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=.95;u.onend=u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,Math.max(5000,text.length*110))})}
+function spokenText(it,idx){
+  if(idx==null)idx=session?session.i:0;
+  if(!session||!it.role||it.drill)return it.q;const prev=idx>0?session.items[idx-1].role:null;
   if(prev===it.role)return it.q;
   const intro={"Program Director":"Hello, I am the program director. Thank you for joining us today. ","Associate Program Director":"Hi, I am one of the associate program directors. ","Faculty (rapid fire)":"Hi, I am a faculty member. I will ask you some quick questions. Short answers are fine. ","Faculty":"Now let's talk through some clinical situations. ","Resident":"Hi, I am one of the residents here. ","Program Coordinator":"Hello, I am the program coordinator. ","Closing":"We are almost done. "}[it.role]||"";
   return intro+it.q;
 }
 const isReal=()=>!!(session&&session.mode==="real");
 function showQText(){if(!item)return;if(isReal()){$("question").textContent="Interview in progress. Listen and answer naturally.";$("btnReveal").style.display="none";return}const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
-$("btnHear").onclick=()=>{if(item&&state==="idle")speak(item.q)};
+$("btnHear").onclick=()=>{if(item&&state==="idle")speakItem({...item,role:item.role},session?session.i:0)};
 $("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
 ["optSpeak","optShow","optVideo","optDl"].forEach(id=>$(id).onchange=()=>{settings.speak=$("optSpeak").checked;settings.show=$("optShow").checked;settings.video=$("optVideo").checked;settings.autoDl=$("optDl").checked;store.set("settings_v1",settings);showQText()});
+
+// ---------- interviewer voice that can be recorded (Kokoro, runs on this laptop) ----------
+let kokoro=null,kokoroLoading=null,curSrc=null,mixDest=null;const ttsCache=new Map();
+const ROLE_VOICE={"Program Director":"am_michael","Associate Program Director":"af_heart","Faculty (rapid fire)":"am_adam","Faculty":"bf_emma","Resident":"af_bella","Program Coordinator":"af_heart","Closing":"am_michael"};
+function loadKokoro(){
+  if(kokoroLoading)return kokoroLoading;
+  $("voiceNote").textContent="Loading interviewer voice (first time only, about 1 to 2 minutes)...";
+  kokoroLoading=(async()=>{try{
+    const {KokoroTTS}=await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js");
+    kokoro=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm"});
+    $("voiceNote").textContent="Interviewer voice ready. Questions will be included in your videos.";prefetch(item);
+  }catch(e){kokoro=null;$("voiceNote").textContent="Interviewer voice could not load ("+e.message+"). Using the browser voice, which is not saved in videos."}})();
+  return kokoroLoading;
+}
+function voiceFor(it){const v=settings.voice||"auto";if(v==="browser")return null;if(v==="auto")return (it&&ROLE_VOICE[it.role])||"af_heart";return v}
+function ttsBuffer(text,voice){const k=voice+"|"+text;if(ttsCache.has(k))return ttsCache.get(k);
+  const p=(async()=>{const a=await kokoro.generate(text,{voice});const buf=audioCtx.createBuffer(1,a.audio.length,a.sampling_rate);buf.copyToChannel(a.audio,0);return buf})();
+  ttsCache.set(k,p);p.catch(()=>ttsCache.delete(k));return p}
+function prefetch(it,idx){if(kokoro&&it&&!it.drill&&audioCtx){const v=voiceFor(it);if(v)ttsBuffer(spokenText(it,idx),v).catch(()=>{})}}
+function playBuf(buf){return new Promise(res=>{const s=audioCtx.createBufferSource();s.buffer=buf;s.connect(audioCtx.destination);if(mixDest)s.connect(mixDest);s.onended=()=>res();curSrc=s;s.start();setTimeout(res,buf.duration*1000+1500)})}
+async function speakItem(it,idx){
+  const text=spokenText(it,idx),v=voiceFor(it);
+  if(kokoro&&v){try{const buf=await ttsBuffer(text,v);if(state!=="countdown"&&state!=="idle")return;await playBuf(buf);return}catch(e){}}
+  await speak(text);
+}
+function stopVoice(){if("speechSynthesis" in window)speechSynthesis.cancel();try{curSrc&&curSrc.stop()}catch(e){}}
+// compositor: camera + question caption, so downloaded videos are self-explanatory
+const comp=document.createElement("canvas"),cx=comp.getContext("2d");let compTimer=null,compText="",compPhase="",lastThumb=0;
+function wrapLines(t,maxW){const w=t.split(" "),L=[];let l="";for(const x of w){const tt=l?l+" "+x:x;if(cx.measureText(tt).width>maxW&&l){L.push(l);l=x}else l=tt}if(l)L.push(l);return L}
+function compDraw(){
+  const v=$("video");if(v.readyState<2)return;
+  if(comp.width!==v.videoWidth&&v.videoWidth){comp.width=v.videoWidth;comp.height=v.videoHeight}
+  cx.drawImage(v,0,0,comp.width,comp.height);
+  if(compText){const fs=Math.round(comp.width/32);cx.font=`700 ${fs}px Arial, sans-serif`;const lines=wrapLines(compText,comp.width-fs*2).slice(0,3),bh=lines.length*fs*1.3+fs*1.2;
+    cx.fillStyle="rgba(0,0,0,.6)";cx.fillRect(0,comp.height-bh,comp.width,bh);cx.fillStyle="#fff";lines.forEach((l,i)=>cx.fillText(l,fs,comp.height-bh+fs*1.25+i*fs*1.3));
+    cx.font=`700 ${Math.round(fs*.8)}px Arial, sans-serif`;cx.fillStyle=compPhase==="answer"?"#ff6b5e":"#9fe3cf";cx.fillText(compPhase==="answer"?"● ANSWER":"QUESTION",fs,fs*1.4)}
+  if(state==="recording"&&S&&performance.now()-lastThumb>2000){lastThumb=performance.now();try{const t=document.createElement("canvas");t.width=240;t.height=Math.round(240*comp.height/comp.width);t.getContext("2d").drawImage(v,0,0,t.width,t.height);(S.thumbs=S.thumbs||[]).push(t)}catch(e){}}
+}
+function startVideoRec(){
+  vChunks=[];vr=null;compText=item.drill?"Read aloud: "+item.q:(item.role?item.role+": ":"")+item.q;compPhase="question";
+  if(!$("optVideo").checked)return;
+  try{const mt=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].find(x=>MediaRecorder.isTypeSupported(x));
+    const ms=new MediaStream([comp.captureStream(24).getVideoTracks()[0],...mixDest.stream.getAudioTracks()]);
+    vr=new MediaRecorder(ms,{mimeType:mt,videoBitsPerSecond:700000});vr.ondataavailable=e=>{if(e.data.size)vChunks.push(e.data)};vr.start(1000)}catch(e){vr=null}
+}
+function discardVideo(){if(vr&&vr.state!=="inactive"){vr.ondataavailable=null;try{vr.stop()}catch(e){}}vr=null;vChunks=[];compText=""}
 
 // ---------- video recordings (kept in memory only) ----------
 const VIDS=new Map();let vr=null,vChunks=[];
@@ -327,6 +380,8 @@ function autoDownload(blob,q,mode){
 function attachVideo(r){if(!S.video)return;if(!S.dlDone){autoDownload(S.video,r.q,r.mode);S.dlDone=true}r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
 function showPlayback(r){const url=r&&r.vid&&VIDS.get(r.vid);$("playWrap").style.display=url?"":"none";$("playback").src=url||""}
 $("btnDlVid").onclick=()=>{const url=lastRec&&VIDS.get(lastRec.vid);if(!url)return;const a=document.createElement("a");a.href=url;a.download="answer-"+new Date(lastRec.t).toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm";a.click()};
+$("btnPack1").onclick=()=>lastRec&&downloadPack([lastRec],"answer");
+$("btnPack").onclick=()=>{if(session){downloadPack(session.recs,"session");$("sumStatus").textContent="Saved to Downloads: one .md file plus one image per answer. Upload them together in a Claude chat."}};
 $("sumList").onclick=e=>{
   const d=e.target.closest("button[data-dl]");if(d){const r=session.recs.find(x=>String(x.vid)===d.dataset.dl);const a=document.createElement("a");a.href=VIDS.get(r.vid);a.download="answer-"+r.q.replace(/[^a-z0-9]+/gi,"-").slice(0,40)+".webm";a.click();return}
   const rv=e.target.closest("button[data-rev]");if(rv){renderReport(session.recs[+rv.dataset.rev],true);hideNav();$("btnNextQ").style.display="";$("btnNextQ").textContent="Back to summary";$("btnNextQ").onclick=()=>{$("btnNextQ").onclick=nextQ;$("report").style.display="none";$("summary").scrollIntoView({block:"start"})};return}
@@ -348,7 +403,7 @@ function setItem(it){
   $("timer").textContent="0:00";updateStart();
 }
 $("btnTips").onclick=()=>{const s=$("tips").style.display==="none";$("tips").style.display=s?"block":"none";$("btnTips").textContent=s?"Hide points to include":"Show points to include"};
-function pickSingle(){const c=$("cat").value;let P=c==="Mixed"?Object.keys(QB).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
+function pickSingle(){setTimeout(()=>prefetch(item),0);const c=$("cat").value;let P=c==="Mixed"?Object.keys(QB).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
 $("btnNext").onclick=pickSingle;
 function updateStart(){$("btnStart").disabled=!(stream&&item&&state==="idle")}
 $("mode").onchange=()=>{const m=$("mode").value;setRealUI(false);clearTimeout(autoTimer);session=null;$("singleCtl").style.display=m==="single"?"":"none";$("btnSession").style.display=m==="single"?"none":"";$("btnSession").textContent=m==="drill"?"Start drill":m==="real"?"Set up interview":"Start session";$("progress").textContent="";hideNav()};
@@ -380,7 +435,8 @@ $("btnSession").onclick=()=>{
 };
 function setRealUI(on){document.body.classList.toggle("real",on);$("btnStart").textContent=on?"Begin interview":"Start answer";$("btnStop").textContent=on?"Done, next question":"Stop";$("btnEndReal").style.display=on?"":"none";
   if(on)$("status").textContent="Press Begin interview. Each question is spoken, then recording starts right away. When you finish an answer, press Done (or the space bar), or stay silent for 7 seconds.";}
-function loadItem(){if(isReal()){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");if(session.i>0)startAnswer();return}
+function loadItem(){prefetch(session.items[session.i],session.i);if(session.items[session.i+1])prefetch(session.items[session.i+1],session.i+1);
+  if(isReal()){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");if(session.i>0)startAnswer();return}
 const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
   if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="New interviewer: "+it.role+".";
   if(isRapid(it.cat)&&session.i>0&&isRapid(session.items[session.i-1].cat))startAnswer();}
@@ -409,7 +465,8 @@ $("btnCam").onclick=async()=>{
   try{await faceapi.tf.setBackend("webgl").catch(()=>{});await faceapi.tf.ready();loadModels();modelsReady=true;$("camStatus").textContent="Ready."}
   catch(e){$("camStatus").textContent="Face tracking unavailable ("+e.message+"). Speech scoring still works."}
   audioCtx=new (window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=1024;tBuf=new Float32Array(analyser.fftSize);
-  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const micSrc=audioCtx.createMediaStreamSource(stream);micSrc.connect(analyser);mixDest=audioCtx.createMediaStreamDestination();micSrc.connect(mixDest);
+  compTimer=setInterval(compDraw,42);if(voiceFor(item)!==null||settings.voice!=="browser")loadKokoro();
   if(!item&&$("mode").value==="single")pickSingle();
   updateStart();previewLoop();initGaze();
 };
@@ -475,10 +532,11 @@ async function startAnswer(){
   hideNav();clearTimeout(autoTimer);$("report").style.display="none";$("playback").pause();$("sumVideo").pause();
   state="countdown";updateStart();$("btnStart").style.display="none";$("btnStop").style.display="";
   if(isReal())$("btnStop").style.display="none";
-  if(($("optSpeak").checked||isReal())&&!item.drill){$("status").textContent="The interviewer is asking...";await speak(spokenText(item));if(state!=="countdown")return}
+  startVideoRec();
+  if(($("optSpeak").checked||isReal())&&!item.drill){$("status").textContent="The interviewer is asking...";await speakItem(item);if(state!=="countdown"){discardVideo();return}}
   if($("prep").checked&&!isReal()){let left=2;$("timer").textContent="0:02";$("status").textContent="Look at the camera...";
     await new Promise(res=>{tickTimer=setInterval(()=>{left--;$("timer").textContent="0:0"+left;if(left<=0||state!=="countdown"){clearInterval(tickTimer);res()}},1000)});
-    if(state!=="countdown")return;}
+    if(state!=="countdown"){discardVideo();return}}
   beginRecording();
 }
 function beginRecording(){
@@ -487,8 +545,7 @@ function beginRecording(){
   G.rolls=0;G.upLong=0;G.upFrames=0;G.awayFrames=0;G.n=0;if(gazer)$("lRoll").textContent="0";
   $("transcript").innerHTML="";audioChunks=[];
   try{mr=new MediaRecorder(new MediaStream(stream.getAudioTracks()));mr.ondataavailable=e=>{if(e.data.size)audioChunks.push(e.data)};mr.start(1000)}catch(e){mr=null}
-  vChunks=[];vr=null;
-  if($("optVideo").checked){try{const mt=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].find(x=>MediaRecorder.isTypeSupported(x));vr=new MediaRecorder(stream,{mimeType:mt,videoBitsPerSecond:600000});vr.ondataavailable=e=>{if(e.data.size)vChunks.push(e.data)};vr.start(1000)}catch(e){vr=null}}
+  compPhase="answer";lastThumb=0;
   startSpeech();
   audioTimer=setInterval(audioTick,50);
   tickTimer=setInterval(()=>{const s=(performance.now()-S.t0)/1000;$("timer").textContent=fmt(s);const hi=item.target[1];$("timer").style.color=s>hi?"var(--bad)":s>hi*.85?"var(--warn)":"";liveSpeech()},500);
@@ -521,7 +578,7 @@ function speakMin(){if(S.firstVoice===null)return 0;const end=state==="recording
 function liveSpeech(){const t=textAll(),w=countWords(t);$("lWpm").textContent=w>8?Math.round(w/speakMin()):"--";$("lFill").textContent=countFill(t)}
 
 $("btnStop").onclick=async()=>{
-  if(state==="countdown"){if("speechSynthesis" in window)speechSynthesis.cancel();clearInterval(tickTimer);state="idle";resetButtons();$("timer").textContent="0:00";$("status").textContent="";return}
+  if(state==="countdown"){stopVoice();clearInterval(tickTimer);state="idle";resetButtons();$("timer").textContent="0:00";$("status").textContent="";return}
   if(state!=="recording")return;
   if(isReal()){stopRealAnswer();return}
   state="processing";clearInterval(audioTimer);clearInterval(tickTimer);try{rec&&rec.stop()}catch(e){}
@@ -531,7 +588,7 @@ $("btnStop").onclick=async()=>{
   previewLoop();
   const vStopped=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
   await new Promise(r=>setTimeout(r,700));await stopped;await vStopped;
-  S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;
+  S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;compText="";
   S.interim="";S.liveText=textAll();
   if(audioChunks.length){
     try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));if(countWords(t)>=Math.min(3,countWords(S.liveText))){S.finals=[t];S.local=true}}
@@ -625,7 +682,7 @@ function buildAnswerRecord(){
   if(!t){r.english=null;r.englishLocal=null}
   calcOverall(r);
   results.push(r);if(results.length>300)results=results.slice(-300);store.set("results_v1",results);
-  attachVideo(r);if(session)session.recs.push(r);
+  attachVideo(r);if(session)session.recs.push(r);makeSheet(r,session?session.recs.length:1);
   const bar=Object.keys(EXP_COL).filter(n=>F.exp[n]>.005).map(n=>`<span style="width:${F.exp[n]*100}%;background:${EXP_COL[n]}" title="${n}"></span>`).join("")||'<span style="width:100%;background:var(--line)"></span>';
   const leg=Object.keys(EXP_COL).filter(n=>F.exp[n]>.01).map(n=>`<span><i style="background:${EXP_COL[n]}"></i>${n} ${Math.round(F.exp[n]*100)}%</span>`).join("");
   HTML.set(r.t,`<p class="status"><strong>Your answer:</strong> ${t?hl(t):"(no transcript)"}</p><h3 class="group">Delivery (face, eyes, voice)</h3><div class="metrics">${cards(F.D)}</div><h3 class="group">English clarity</h3><div class="metrics">${cards(EN.E)||'<p class="status">No speech captured.</p>'}</div><div style="margin-top:1rem"><strong>Expression mix</strong><div class="bar">${bar}</div><div class="legend">${leg}</div></div>`);
@@ -720,6 +777,39 @@ $("btnAI").onclick=()=>lastRec&&scoreWithAI(lastRec,true);
 async function copyText(s,el){try{await navigator.clipboard.writeText(s);el.textContent="Copied. Paste it into a Claude chat."}catch(e){$("aiOut").innerHTML="<p>Copy this into a Claude chat:</p><textarea style='min-height:12rem'>"+esc(s)+"</textarea>"}}
 $("btnCopy").onclick=()=>lastRec&&copyText(answerPrompt(lastRec),$("aiStatus"));
 
+// ---------- feedback pack for Claude (text + still frames; Claude cannot watch video files) ----------
+const SHEETS=new Map();
+function makeSheet(r,num){
+  const T=(S.thumbs||[]);if(!T.length)return;const n=Math.min(6,T.length),pick=[...Array(n)].map((_,i)=>T[Math.floor(i*(T.length-1)/Math.max(1,n-1))]);
+  const tw=240,th=T[0].height,cols=3,rows=Math.ceil(n/cols),c=document.createElement("canvas");c.width=tw*cols;c.height=th*rows+56;const g=c.getContext("2d");
+  g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.fillStyle="#000";g.font="700 16px Arial";g.fillText(`Answer ${num}: ${r.q}`.slice(0,90),8,22);g.font="13px Arial";g.fillText(`${r.role||r.cat} | ${fmt(r.dur)} | frames every ${Math.max(2,Math.round(r.dur/n))} s across the answer`,8,44);
+  pick.forEach((t,i)=>g.drawImage(t,(i%cols)*tw,56+Math.floor(i/cols)*th,tw,th));
+  c.toBlob(b=>{if(b)SHEETS.set(r.t,b)},"image/jpeg",.8);
+}
+function saveBlob(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}
+function packText(R){
+  const about=settings.about||mine.profile||"";
+  return `# Interview practice feedback request
+
+Please act as an experienced ${settings.specialty} residency interviewer and coach for an international medical graduate (IMG) in the NRMP Match.
+${about?"\nApplicant background (context only; do not invent facts beyond this and the answers): "+about+"\n":""}
+For each answer: give content /10 and English clarity /10 (grammar, word choice, how easy it is to understand; never judge accent), one strength and one fix. Use the attached frame images (if any) to comment on eye contact, facial expression, posture and eye rolls. Then list the 3 most important patterns to work on, and rewrite the weakest answer using only facts given.
+
+Transcripts are automatic speech-to-text, so odd words were probably spoken unclearly.
+
+`+R.map((r,i)=>`## Answer ${i+1}${r.role?" ("+r.role+")":""}
+Question: ${r.q}
+Answer: ${r.text||"(no transcript)"}
+Length: ${fmt(r.dur)}. App scores: overall ${r.overall??"--"}, content ${r.content??"--"}, English ${r.english??"--"}, delivery ${r.delivery??"--"}.
+Measured: ${JSON.stringify(r.metrics||{})}
+${SHEETS.has(r.t)?`Frames: see image answer-${String(i+1).padStart(2,"0")}-frames.jpg`:""}`).join("\n\n");
+}
+async function downloadPack(R,label){
+  R=R.filter(r=>r.mode!=="drill");if(!R.length)return;
+  saveBlob(new Blob([packText(R)],{type:"text/markdown"}),`claude-feedback-${label}.md`);
+  for(let i=0;i<R.length;i++){const b=SHEETS.get(R[i].t);if(b){await new Promise(r=>setTimeout(r,500));saveBlob(b,`answer-${String(i+1).padStart(2,"0")}-frames.jpg`)}}
+}
+
 // ---------- real interview ----------
 async function stopRealAnswer(){
   if(state!=="recording")return;
@@ -728,14 +818,14 @@ async function stopRealAnswer(){
   const a=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
   const v=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
   await new Promise(r=>setTimeout(r,500));await a;await v;
-  S.interim="";S.liveText=textAll();S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;
+  S.interim="";S.liveText=textAll();S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;compText="";
   if(S.video){autoDownload(S.video,item.q,"real");S.dlDone=true}
   session.queue.push({S,G:{...G},item,audio:audioChunks});
   state="idle";previewLoop();
   if(session.ending||session.i>=session.items.length-1){processReal();return}
   session.i++;loadItem();
 }
-$("btnEndReal").onclick=()=>{if(!isReal())return;session.ending=true;if(state==="recording")stopRealAnswer();else{if("speechSynthesis" in window)speechSynthesis.cancel();clearInterval(tickTimer);state="idle";resetButtons();processReal()}};
+$("btnEndReal").onclick=()=>{if(!isReal())return;session.ending=true;if(state==="recording")stopRealAnswer();else{stopVoice();clearInterval(tickTimer);state="idle";resetButtons();processReal()}};
 document.addEventListener("keydown",e=>{if(e.code==="Space"&&isReal()&&state==="recording"&&!/INPUT|TEXTAREA|SELECT|BUTTON/.test(document.activeElement.tagName)){e.preventDefault();stopRealAnswer()}});
 async function processReal(){
   if(session.processing)return;session.processing=true;
@@ -801,8 +891,8 @@ $("btnCSV").onclick=()=>{
 $("btnClearHist").onclick=()=>{if(confirm("Delete all saved scores from this browser?")){results=[];store.set("results_v1",results);renderHistory()}};
 
 // ---------- settings ----------
-function loadSettingsUI(){$("setSpec").value=settings.specialty;$("setProg").value=settings.program;$("setName").value=settings.name;$("setAbout").value=settings.about||mine.profile||"";$("setKey").value=settings.apiKey;$("setModel").value=settings.model;$("setAuto").checked=settings.autoAI}
-$("btnSaveSet").onclick=()=>{settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked,voice:$("setVoice").value,speak:$("optSpeak").checked,show:$("optShow").checked,video:$("optVideo").checked,autoDl:$("optDl").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
+function loadSettingsUI(){$("setVoice").value=settings.voice||"auto";$("setSpec").value=settings.specialty;$("setProg").value=settings.program;$("setName").value=settings.name;$("setAbout").value=settings.about||mine.profile||"";$("setKey").value=settings.apiKey;$("setModel").value=settings.model;$("setAuto").checked=settings.autoAI}
+$("btnSaveSet").onclick=()=>{ttsCache.clear();setTimeout(()=>{if(stream&&$("setVoice").value!=="browser")loadKokoro()},0);settings={specialty:$("setSpec").value,program:$("setProg").value.trim(),name:$("setName").value.trim(),about:$("setAbout").value.trim(),apiKey:$("setKey").value.trim(),model:$("setModel").value,autoAI:$("setAuto").checked,voice:$("setVoice").value,speak:$("optSpeak").checked,show:$("optShow").checked,video:$("optVideo").checked,autoDl:$("optDl").checked};store.set("settings_v1",settings);$("setStatus").textContent="Saved.";renderCats()};
 $("fileImport").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const j=JSON.parse(await f.text());const qs=(j.questions||[]).filter(x=>x&&x.q).map(x=>({q:String(x.q),tips:x.tips?String(x.tips):"",cat:"My questions"}));

@@ -1,4 +1,4 @@
-# Practice app guide (Version 8)
+# Practice app guide (Version 10)
 
 ## The files
 
@@ -13,7 +13,7 @@
 2. Click **Add file**, then **Upload files**.
 3. Drag in **index.html** only, then click **Commit changes**.
 4. Wait 2 minutes, open https://phuyaldinesh.github.io/px7k/ and press Ctrl + Shift + R (Mac: Cmd + Shift + R).
-5. The bottom of the page should say **Version 8**.
+5. The bottom of the page should say **Version 10**.
 
 ## 2. Load your private questions (one time)
 1. On the app page, open **Settings and private data** at the bottom.
@@ -42,15 +42,23 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 - **English clarity drill:** read 8 pediatric sentences aloud. Words that were not understood are underlined, so you know exactly which words to practice.
 
 ## 5. Spoken questions and video
-- **Read questions aloud:** the interviewer voice asks each question, then recording starts after a 2-second countdown. Change the voice in Settings.
+- **Read questions aloud:** the interviewer voice asks each question, then recording starts. By default each interviewer has a different voice. Change it in Settings.
+- **Complete videos:** each downloaded video contains the spoken question, then your answer, with the question shown as a caption. The first time, the interviewer voice downloads (about 1 to 2 minutes). Until it is ready, a browser voice is used and that question's audio is not in the video (the caption still is).
 - **Show question text:** untick it to practice like a real interview (listen only). Click **Show question** if you need to read it.
 - **Hear question:** repeats the question.
 - **Record video:** after each answer, watch yourself under **Watch your answer**. In the session summary, click **Play** next to any answer.
-- To save videos: click **Download video** under any answer, **Download** next to an answer in the session summary, or **Download all videos** to save the whole session. If Chrome asks, choose **Allow** multiple downloads. Files are .webm and open in Chrome or VLC.
+- **Auto-download videos** (on by default): every answer video saves to your Downloads folder as soon as you press Stop, named with the date, time and question. The first time, Chrome may ask to allow multiple downloads: choose **Allow**.
+- To save videos manually: click **Download video** under any answer, **Download** next to an answer in the session summary, or **Download all videos** to save the whole session. If Chrome asks, choose **Allow** multiple downloads. Files are .webm and open in Chrome or VLC.
 - Videos stay on the laptop and are deleted when you reload the page unless you download them.
 - In the summary, **Review** opens the full feedback for any answer.
 
-## 6. How each answer is scored (0 to 100)
+## 6. Getting more feedback from Claude
+Claude cannot watch video files, so the app makes a feedback pack instead:
+1. After a session, click **Download Claude feedback pack** in the summary (or **Download for Claude** under one answer).
+2. Your Downloads folder gets one .md file (questions, answers, scores, measurements, and the request to Claude) and one image per answer with 6 still frames from it.
+3. Open a new Claude chat, attach the .md file and the images (up to about 20 images per message), and press send.
+
+## 7. How each answer is scored (0 to 100)
 - **Content:** structure, specific examples, insight, fit with pediatrics. Scored by Claude, or a quick estimate marked with *.
 - **English clarity:** pace, fillers, pauses, how well two speech systems agree on your words, and Claude's grammar and word-choice review. Accent is not penalized.
 - **Delivery:** eye contact, eye rolls, looking up, smiling, tension, head movement, voice energy, answer length.
@@ -58,7 +66,7 @@ Each scored answer costs a small amount from that credit. The key is saved only 
 
 All scores are saved in **Progress over time**. Click **Download my results (CSV)** to open them in Excel.
 
-## 7. If something goes wrong
+## 8. If something goes wrong
 - No transcript: wait for the speech model download the first time, and check the microphone is allowed (icon in the address bar).
 - Eye-roll counter shows "n/a": reload the page with Ctrl + Shift + R.
 - Moving to a new laptop or browser: import my-questions.json again and re-enter your API key.
