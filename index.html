@@ -96,15 +96,37 @@ label.chk input{margin-top:.25rem}
 .topbar .grow{flex:1}
 .timer{font-variant-numeric:tabular-nums;font-size:1.6rem;font-weight:700}
 .timer small{font-size:.85rem;color:var(--muted);font-weight:400}
-.call{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:.9rem;margin-top:.9rem}
+.call{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:.75rem;margin-top:.9rem}
 @media (max-width:860px){.call{grid-template-columns:1fr}}
 .tile{border-radius:18px;border:1px solid var(--line);background:var(--panel);overflow:hidden;position:relative}
-.iv{background:linear-gradient(160deg,var(--lav),var(--sky));padding:1.2rem;display:flex;flex-direction:column;align-items:center;text-align:center;min-height:100%}
-.avatar{width:110px;height:110px;border-radius:50%;display:grid;place-items:center;font-size:2rem;font-weight:700;background:var(--panel);color:var(--accent);border:4px solid var(--panel);margin-top:.6rem;transition:box-shadow .2s}
-.iv.speaking .avatar{box-shadow:0 0 0 6px var(--mint-b),0 0 0 12px color-mix(in srgb,var(--mint-b) 45%,transparent)}
-.ivName{font-weight:700;margin-top:.6rem}
-.role{display:inline-block;background:var(--panel);border-radius:999px;padding:.15rem .7rem;font-size:.82rem;margin-top:.3rem}
-.q{font-size:1.3rem;line-height:1.38;margin:.9rem 0 .6rem;font-weight:700;max-width:34ch}
+.iv{background:#1a1f2e;padding:0;display:flex;flex-direction:column;align-items:stretch;text-align:center;min-height:100%;position:relative}
+.iv-stage{position:relative;flex:1;min-height:240px;display:flex;align-items:flex-end;justify-content:center;background:radial-gradient(ellipse at 50% 28%,#2e3a52 0%,#1a1f2e 72%);overflow:hidden}
+.iv-stage::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.6) 100%);pointer-events:none;z-index:2}
+.avatar{width:min(300px,88%);aspect-ratio:220/250;margin:0 auto;position:relative;z-index:1}
+.avatar svg{width:100%;height:100%;display:block;overflow:visible}
+.iv-live{position:absolute;top:.55rem;left:.55rem;z-index:3;display:none;align-items:center;gap:.35rem;background:rgba(0,0,0,.6);color:#fff;border-radius:999px;padding:.18rem .55rem;font-size:.72rem;font-weight:700;letter-spacing:.03em}
+.iv.speaking .iv-live{display:flex}
+.iv-live i{width:.45rem;height:.45rem;border-radius:50%;background:#3dd68c;box-shadow:0 0 6px #3dd68c;animation:pulse-live 1.2s ease-in-out infinite}
+@keyframes pulse-live{0%,100%{opacity:1}50%{opacity:.4}}
+.iv-namebar{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:.55rem .85rem .7rem;text-align:left;color:#fff}
+.iv-namebar .ivName{font-weight:700;font-size:.98rem;margin:0;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+.iv-namebar .ivTitle{font-size:.78rem;color:rgba(255,255,255,.82);margin:.08rem 0 0;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.iv-qwrap{padding:.85rem 1rem 1rem;background:var(--panel);border-top:1px solid var(--line);text-align:left}
+.avatar::after{content:"";position:absolute;left:5%;right:5%;top:0;aspect-ratio:1;border-radius:50%;box-shadow:0 0 0 0 transparent;transition:box-shadow .3s;pointer-events:none;z-index:2}
+.iv.speaking .avatar::after{box-shadow:0 0 0 4px #3dd68c,0 0 0 11px rgba(61,214,140,.22)}
+.pv-head{transform-origin:110px 165px;animation:sway 6s ease-in-out infinite}
+.pv-body{animation:breathe 4s ease-in-out infinite}
+.pv-eyes{transform-origin:110px 107px;transform-box:view-box;transition:transform .06s}
+.iv.blink .pv-eyes{transform:scaleY(.08)}
+.iv.nod .pv-head{animation:nod .85s ease-in-out}
+.iv.listening .pv-smile{stroke-width:2.8}
+.iv.speaking .pv-head{animation:talk-sway 1.05s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.2deg) translateY(0)}50%{transform:rotate(1.2deg) translateY(1px)}}
+@keyframes talk-sway{0%,100%{transform:rotate(-.7deg) translateY(0)}50%{transform:rotate(1deg) translateY(1.4px)}}
+@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}
+@keyframes nod{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(5px) rotate(.6deg)}70%{transform:translateY(1px)}}
+.role{display:inline-block;background:var(--soft);border-radius:999px;padding:.15rem .7rem;font-size:.82rem;margin-top:.3rem;color:var(--ink)}
+.q{font-size:1.2rem;line-height:1.38;margin:0 0 .45rem;font-weight:700;max-width:100%;color:var(--ink)}
 .drillq{font-size:1.4rem;line-height:1.4}
 #tips{background:var(--panel);border-radius:10px;padding:.6rem .8rem;margin-top:.4rem;font-size:.92rem;text-align:left}
 .stage{position:relative;background:#0d1312;aspect-ratio:4/3}
@@ -216,7 +238,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
       <summary>4. Video</summary>
       <div class="body">
         <label class="chk"><input type="checkbox" id="optVideo"> Record video of each answer (with the spoken question)</label>
-        <label class="chk"><input type="checkbox" id="optDl"> Save each video to Downloads automatically</label>
+        <label class="chk"><input type="checkbox" id="optDl"> Save each video and a Word file of my answer to Downloads automatically</label>
         <p class="hint">Videos never leave this laptop.</p>
       </div>
     </details>
@@ -270,26 +292,34 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
       <p class="status" id="histNote" style="margin:0">No answers saved yet.</p>
       <div class="tablewrap"><table class="tbl" id="hist"></table></div>
     </section>
-    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 11.</p>
+    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 13.3.</p>
   </main>
 </div>
 
 <!-- ================= ROOM ================= -->
 <div class="room" id="room" hidden>
   <div class="topbar">
-    <button id="btnHome">&#8592; Settings</button>
-    <span class="status grow" id="progress" style="margin:0"></span>
+    <button id="btnHome" title="Leave interview room">Leave</button>
+    <span class="status grow" id="progress" style="margin:0">Joining room...</span>
     <span class="timer"><span id="timer">0:00</span> <small id="timerNote"></small></span>
   </div>
 
   <div class="call">
     <div class="tile iv" id="ivTile">
-      <div class="avatar" id="ivAvatar" aria-hidden="true">IV</div>
-      <div class="ivName" id="ivName">Interviewer</div>
-      <span class="role" id="role" style="display:none"></span>
-      <p class="q" id="question">Getting ready...</p>
-      <div class="row" id="qCtl" style="justify-content:center"><button id="btnHear">&#128264; Hear question again</button><button id="btnReveal" style="display:none">Show question</button></div>
-      <div id="tipsWrap" style="display:none;margin-top:.6rem;width:100%"><button class="link" id="btnTips">Show points to include</button><div id="tips" style="display:none"></div></div>
+      <div class="iv-stage">
+        <div class="iv-live"><i></i> SPEAKING</div>
+        <div class="avatar" id="ivAvatar"></div>
+        <div class="iv-namebar">
+          <div class="ivName" id="ivName">Interviewer</div>
+          <div class="ivTitle" id="ivTitle"></div>
+        </div>
+      </div>
+      <div class="iv-qwrap">
+        <span class="role" id="role" style="display:none"></span>
+        <p class="q" id="question">Getting ready...</p>
+        <div class="row" id="qCtl" style="justify-content:flex-start;margin-top:.35rem"><button id="btnHear">&#128264; Hear question again</button><button id="btnReveal" style="display:none">Show question</button></div>
+        <div id="tipsWrap" style="display:none;margin-top:.5rem;width:100%"><button class="link" id="btnTips">Show points to include</button><div id="tips" style="display:none"></div></div>
+      </div>
     </div>
     <div class="tile">
       <div class="stage">
@@ -313,8 +343,9 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
 
   <div class="toolbar">
     <span class="row" id="singleCtl"><select id="cat" aria-label="Question category"></select><button id="btnNext">New question</button></span>
+    <button id="btnHearBar">&#128264; Hear question again</button>
     <button class="primary" id="btnStart" disabled>Start answer</button>
-    <button class="stop" id="btnStop" style="display:none">Stop</button>
+    <button class="stop" id="btnStop" style="display:none">Done</button>
     <button id="btnEndReal" style="display:none">End interview</button>
     <button id="btnSession" style="display:none">Start new session</button>
   </div>
@@ -339,7 +370,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
     <div id="metrics"></div>
     <div id="expWrap" style="display:none"><div id="expBar"></div><div id="expLegend"></div></div>
     <div class="ai" id="aiWrap">
-      <div class="row"><button id="btnPack1">Download feedback pack for this answer</button><a class="btn fblink" target="_blank" rel="noopener">Open Claude feedback page</a><button class="primary" id="btnAI">Score with Claude (API)</button><button id="btnCopy">Copy for Claude chat</button><span class="status" id="aiStatus" style="margin:0"></span></div>
+      <div class="row"><button id="btnDocx1">Download my answer (Word)</button><button id="btnPack1">Download feedback pack for this answer</button><a class="btn fblink" target="_blank" rel="noopener">Open Claude feedback page</a><button class="primary" id="btnAI">Score with Claude (API)</button><button id="btnCopy">Copy for Claude chat</button><span class="status" id="aiStatus" style="margin:0"></span></div>
       <div class="ai-out" id="aiOut"></div>
     </div>
     <div class="row" style="margin-top:1rem">
@@ -355,7 +386,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
     <div class="row" style="margin-top:.9rem">
       <button class="primary" id="btnPack">Download Claude feedback pack</button>
       <a class="btn fblink" target="_blank" rel="noopener">Open Claude feedback page</a>
-      <button id="btnDlAll">Download all videos</button>
+      <button id="btnDlAll">Download all videos</button><button id="btnDocxAll">Download all answers (Word)</button>
     </div>
     <p class="status" id="sumStatus"></p>
     <div class="tablewrap"><table class="tbl" id="sumRoles"></table></div>
@@ -388,6 +419,8 @@ const QB={
  "Getting to know you":["Tell me about yourself.","Walk me through your application.","Why {specialty}?","Where do you see yourself in several years?","A year from now, what feedback will I hear about you from the program director?","What was an experience that was eye-opening, or one you learned a lot from?","What are your greatest strengths?","What is your biggest weakness?","Why should we rank you highly?","What are you looking for in a residency program?","Tell me about one thing on your CV you are most proud of.","How would your colleagues describe you?"],
  "Behavioral":["A nurse disagrees with your plan for a patient. How do you handle it?","You have a schedule conflict, but you are asked to take more admissions. What do you do?","Tell me about a time you had a conflict and how you resolved it.","Tell me about a hardship you have faced.","Tell me about a time you had to show resilience.","Tell me about a time you made a mistake.","Tell me about a time you received critical feedback.","Describe a time you showed leadership.","Tell me about a time you advocated for a patient.","How do you prioritize when several patients need you at once?","Tell me about a time you worked with a difficult colleague."],
  "Pediatric scenarios":["A parent refuses vaccines for their child. How do you handle it?","A 15-year-old asks for contraception and does not want her parents told. What do you do?","You suspect a child you are seeing may be a victim of abuse. What are your next steps?","How would you explain a new diagnosis to a very anxious parent?","How would you counsel a family about childhood obesity without causing shame?","What are your priorities during a well-child visit?","How do you build trust with a teenager who does not want to talk?","A parent disagrees with your management plan. What do you do?","A febrile 3-week-old is in clinic and the parents want to go home. How do you respond?","How would you communicate with a family who speaks limited English?","How would you deliver bad news to parents?","Tell me about a pediatric patient you remember and what you learned."],
+ "Family Medicine scenarios":["A patient with uncontrolled diabetes says they cannot afford their medications. What do you do?","A patient asks for antibiotics for a viral upper respiratory infection. How do you handle it?","How would you approach a patient with several chronic conditions and limited time in clinic?","A teenager comes in alone asking about contraception. How do you handle confidentiality?","A patient misses most follow-up appointments. How do you respond?","An older patient is taking many medications. How do you approach deprescribing?","A family disagrees about end-of-life care for their parent. What do you do?","How would you counsel a patient who is hesitant about vaccines?"],
+ "Internal Medicine scenarios":["A patient admitted with heart failure is not improving. Walk me through your approach.","A patient wants to leave against medical advice. What do you do?","A family asks you not to tell the patient about a new cancer diagnosis. How do you respond?","You are cross-covering and a patient becomes hypotensive. What are your first steps?","A patient with diabetes keeps being readmitted. How would you reduce readmissions?","How do you approach a goals-of-care conversation with a seriously ill patient?","A consultant disagrees with your plan. How do you handle it?","A patient with limited English is being discharged. How do you make sure the plan is understood?"],
  "Rapid fire":["Give me three concrete reasons why {specialty}.","Who is the most impactful person in your life?","If you were a brand, what would \"Brand {name}\" be and what would it say?","What is your favorite cartoon character, and how would you treat them with their cultural background in mind?","What hobby do you like outside of medicine?","Describe yourself in three words.","What is the best advice you have ever received?","What was the last book you read?","If you were not a doctor, what would you be?","What makes you laugh?","What is your favorite children's book?","Name one weakness in ten seconds."],
  "Team and wellness":["What are ways you support someone on the team when they are struggling or feeling down?","How do you handle stress and avoid burnout?","What would you bring to our resident community?","How would you handle a disagreement with a co-resident?","What do you do on a day off?","What is your communication style on a team?"],
  "Program and advocacy":["Why {program}?","What advocacy project would you take part in?","What do you know about our patient population?","What would you contribute to our program?","How did you hear about our program?","Do you have any questions for us?"],
@@ -395,9 +428,12 @@ const QB={
  "Closing":["Is there anything else you would like us to know about you?","Do you have any questions for me?"]
 };
 const DRILL=["The infant presented with bronchiolitis and mild subcostal retractions.","Please give acetaminophen every six hours as needed for fever.","Her developmental milestones are appropriate for her age.","We recommend the measles, mumps, and rubella vaccine at twelve months.","The adolescent reported intermittent abdominal pain for three weeks.","His oxygen saturation improved after we started supplemental oxygen.","Exclusive breastfeeding is recommended for about the first six months.","I would like to discuss the results of your daughter's blood tests.","Febrile seizures are usually brief and do not cause brain damage.","We will monitor her growth, weight, and head circumference closely.","Dehydration can often be treated with oral rehydration solution at home.","An asthma action plan helps families recognize worsening symptoms early.","I chose pediatrics because I enjoy partnering with families.","Thank you for the opportunity to interview with your program today.","Your son's ear infection should improve within two to three days.","Please return to the emergency department if she has trouble breathing."];
-const ROLE_CAT={"Program Director":"Getting to know you","Associate Program Director":"Behavioral","Faculty":"Pediatric scenarios","Faculty (rapid fire)":"Rapid fire","Resident":"Team and wellness","Program Coordinator":"Program and advocacy"};
-function fill(q){return q.replace(/\{program\}/g,settings.program||"our program").replace(/\{name\}/g,settings.name||"Your Name").replace(/\{specialty\}/g,settings.specialty.toLowerCase()==="pediatrics"?"pediatrics":settings.specialty.toLowerCase())}
-function cats(){const c=Object.keys(QB);if(mine.questions.length)c.unshift("My questions");return c}
+const CLINICAL_CAT={"Pediatrics":"Pediatric scenarios","Family Medicine":"Family Medicine scenarios","Internal Medicine":"Internal Medicine scenarios"};
+function clinicalCat(){return CLINICAL_CAT[settings.specialty]||"Pediatric scenarios"}
+const ROLE_CAT={"Program Director":"Getting to know you","Associate Program Director":"Behavioral","Faculty":null,"Faculty (rapid fire)":"Rapid fire","Resident":"Team and wellness","Program Coordinator":"Program and advocacy"};
+
+function fill(q){const spec=settings.specialty||"Pediatrics";const specPhrase=spec==="Pediatrics"?"pediatrics":spec==="Family Medicine"?"family medicine":spec==="Internal Medicine"?"internal medicine":spec.toLowerCase();return q.replace(/\{program\}/g,settings.program||"our program").replace(/\{name\}/g,settings.name||"Your Name").replace(/\{specialty\}/g,specPhrase)}
+function cats(){const all=Object.keys(QB);const clin=["Pediatric scenarios","Family Medicine scenarios","Internal Medicine scenarios"];const keep=clinicalCat();const c=all.filter(k=>!clin.includes(k)||k===keep);if(mine.questions.length)c.unshift("My questions");return c}
 function pool(cat){if(cat==="My questions")return mine.questions.map(o=>({q:o.q,tips:o.tips,cat}));return (QB[cat]||[]).map(q=>({q:fill(q),cat}))}
 const isRapid=cat=>cat==="Rapid fire";
 const targetFor=cat=>isRapid(cat)?[10,45]:[45,150];
@@ -407,7 +443,7 @@ let voices=[];
 function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}
 if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
 function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=.95;u.onend=u.onerror=()=>res();speechSynthesis.speak(u);setTimeout(res,Math.max(5000,text.length*110))})}
-function spokenText(it,idx){
+function spokenText(it,idx){if(it.repeat)return "Sure. "+it.q;
   if(idx==null)idx=session?session.i:0;
   if(!session||!it.role||it.drill)return it.q;const prev=idx>0?session.items[idx-1].role:null;
   if(prev===it.role)return it.q;
@@ -416,7 +452,9 @@ function spokenText(it,idx){
 }
 const isReal=()=>!!(session&&session.mode==="real");
 function showQText(){if(!item)return;if(isReal()){$("question").textContent="Interview in progress. Listen and answer naturally.";$("btnReveal").style.display="none";return}const show=$("optShow").checked||item.drill;$("question").textContent=item.drill?"Read aloud: "+item.q:show?item.q:"Question hidden. Listen, then answer.";$("btnReveal").style.display=show?"none":"";$("btnHear").style.display=item.drill?"none":""}
-$("btnHear").onclick=()=>{if(item&&state==="idle")speakItem({...item,role:item.role},session?session.i:0)};
+function hearAgain(){if(item&&!item.drill&&!ivSpeaking&&(state==="idle"||state==="recording"))speakItem({...item,repeat:true},session?session.i:0)}
+$("btnHear").onclick=hearAgain;
+$("btnHearBar").onclick=hearAgain;
 $("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
 
 
@@ -438,12 +476,12 @@ function ttsBuffer(text,voice){const k=voice+"|"+text;if(ttsCache.has(k))return 
   const p=(async()=>{const a=await kokoro.generate(text,{voice});const buf=audioCtx.createBuffer(1,a.audio.length,a.sampling_rate);buf.copyToChannel(a.audio,0);return buf})();
   ttsCache.set(k,p);p.catch(()=>ttsCache.delete(k));return p}
 function prefetch(it,idx){if(kokoro&&it&&!it.drill&&audioCtx){const v=voiceFor(it);if(v)ttsBuffer(spokenText(it,idx),v).catch(()=>{})}}
-function playBuf(buf){return new Promise(res=>{const s=audioCtx.createBufferSource();s.buffer=buf;s.connect(audioCtx.destination);if(mixDest)s.connect(mixDest);s.onended=()=>res();curSrc=s;s.start();setTimeout(res,buf.duration*1000+1500)})}
+function playBuf(buf){return new Promise(res=>{const s=audioCtx.createBufferSource();s.buffer=buf;s.connect(audioCtx.destination);if(mixDest)s.connect(mixDest);if(!ttsAn){ttsAn=audioCtx.createAnalyser();ttsAn.fftSize=512}s.connect(ttsAn);ttsPlaying=true;const done=()=>{ttsPlaying=false;res()};s.onended=done;curSrc=s;s.start();setTimeout(done,buf.duration*1000+1500)})}
 async function speakItem(it,idx){setSpeaking(true);try{await speakItem0(it,idx)}finally{setSpeaking(false)}}
-function setSpeaking(on){$("ivTile").classList.toggle("speaking",on)}
+function setSpeaking(on){ivSpeaking=on;$("ivTile").classList.toggle("speaking",on)}
 async function speakItem0(it,idx){
   const text=spokenText(it,idx),v=voiceFor(it);
-  if(kokoro&&v){try{const buf=await ttsBuffer(text,v);if(state!=="countdown"&&state!=="idle")return;await playBuf(buf);return}catch(e){}}
+  if(kokoro&&v){try{const buf=await ttsBuffer(text,v);if(state!=="countdown"&&state!=="idle"&&state!=="recording")return;await playBuf(buf);return}catch(e){}}
   await speak(text);
 }
 function stopVoice(){if("speechSynthesis" in window)speechSynthesis.cancel();try{curSrc&&curSrc.stop()}catch(e){}}
@@ -472,15 +510,19 @@ function discardVideo(){if(vr&&vr.state!=="inactive"){vr.ondataavailable=null;tr
 const VIDS=new Map();let vr=null,vChunks=[];
 let dlCount=0;
 function vidName(q,mode){const d=new Date(),p=n=>String(n).padStart(2,"0");return `interview-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}_${(mode||"single")}_${String(q).replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").slice(0,40)}.webm`}
+function baseName(q,mode){return vidName(q,mode).replace(/\.webm$/,"")}
 function autoDownload(blob,q,mode){
   if(!$("optDl").checked||!blob)return;
-  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=vidName(q,mode);document.body.appendChild(a);a.click();a.remove();
+  S.base=S.base||baseName(q,mode);
+  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=S.base+".webm";document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),60000);dlCount++;
   if(dlCount===2)$("status").textContent="Videos are saving to your Downloads folder. If Chrome asks, choose Allow so every video can save.";
 }
 function attachVideo(r){if(!S.video)return;if(!S.dlDone){autoDownload(S.video,r.q,r.mode);S.dlDone=true}r.vid=r.t;VIDS.set(r.t,URL.createObjectURL(S.video));if(VIDS.size>40){const k=VIDS.keys().next().value;URL.revokeObjectURL(VIDS.get(k));VIDS.delete(k)}}
 function showPlayback(r){const url=r&&r.vid&&VIDS.get(r.vid);$("playWrap").style.display=url?"":"none";$("playback").src=url||""}
 $("btnDlVid").onclick=()=>{const url=lastRec&&VIDS.get(lastRec.vid);if(!url)return;const a=document.createElement("a");a.href=url;a.download="answer-"+new Date(lastRec.t).toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm";a.click()};
+$("btnDocx1").onclick=()=>lastRec&&saveDocx([lastRec],"answer-"+String(lastRec.q).replace(/[^a-z0-9]+/gi,"-").slice(0,40),"My interview answer");
+$("btnDocxAll").onclick=async()=>{if(!session)return;const R=session.recs.filter(r=>r.mode!=="drill");if(!R.length)return;const d=new Date(),p=n=>String(n).padStart(2,"0");if(await saveDocx(R,`interview-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_all-answers`,"My interview answers"))$("sumStatus").textContent="Word file saved to Downloads."};
 $("btnPack1").onclick=async()=>{if(lastRec&&await downloadPack([lastRec]))$("aiStatus").textContent="Saved. Open the Claude feedback page and drop the file there."};
 $("btnPack").onclick=async()=>{if(session&&await downloadPack(session.recs))$("sumStatus").textContent="Saved to Downloads. Now open the Claude feedback page and drop the file there."};
 $("btnPackChat").onclick=()=>{if(session){downloadChatPack(session.recs,"session");$("sumStatus").textContent="Saved: one .md file plus one image per answer. Attach them together in a Claude chat."}};
@@ -497,18 +539,98 @@ const EXP_COL={happy:"#3E9C7E",neutral:"#9AAAA6",surprised:"#5A8FC4",sad:"#7D6BB
 
 // ---------- question UI ----------
 function renderCats(){const v=$("cat").value;$("cat").innerHTML="";["Mixed",...cats()].forEach(c=>{const o=document.createElement("option");o.textContent=c;$("cat").appendChild(o)});if([...$("cat").options].some(o=>o.textContent===v))$("cat").value=v}
+// ---------- animated interviewer ----------
+let ivSpeaking=false,ttsPlaying=false,ttsAn=null,nextBlink=0,nextNod=0;const mBuf=new Float32Array(512);
+const P_BASE={skin:"#C68B59",hair:"#2B2B2B",style:"short",coat:"#FFFFFF",shirt:"#3E6FB0",kind:"coat"};
+const PERSONAS={
+ "Program Director":{name:"Dr. Daniel Reed",title:"Program Director",skin:"#C68B59",hair:"#6B6B6B",style:"short",shirt:"#3E6FB0",tie:"#7A2E3B",glasses:true,g:"m"},
+ "Associate Program Director":{name:"Dr. Amara Okafor",title:"Associate Program Director",skin:"#8D5524",hair:"#1E1A17",style:"bun",shirt:"#2A9D8F",g:"f"},
+ "Faculty":{name:"Dr. Emily Hart",title:"Faculty, General Pediatrics",skin:"#F1C27D",hair:"#7B4B2A",style:"long",shirt:"#E9A6B8",steth:true,g:"f"},
+ "Faculty (rapid fire)":{name:"Dr. Ravi Menon",title:"Faculty, Hospital Medicine",skin:"#B07A4C",hair:"#1B1B1B",style:"short",shirt:"#6C7A89",steth:true,beard:true,g:"m"},
+ "Resident":{name:"Dr. Priya Shah",title:"PGY-2 Resident",skin:"#E0AC69",hair:"#111111",style:"long",coat:"#4F86C6",shirt:"#3F72AE",kind:"scrubs",g:"f"},
+ "Program Coordinator":{name:"Sofia Ramirez",title:"Program Coordinator",skin:"#C68B59",hair:"#2A1B12",style:"bob",coat:"#2F3E63",shirt:"#F4F1EA",kind:"blazer",g:"f"},
+ "English clarity drill":{name:"Ms. Grace Kim",title:"English clarity coach",skin:"#F1C27D",hair:"#1A1A1A",style:"bob",coat:"#8FBFAE",shirt:"#FFFFFF",kind:"blazer",g:"f"},
+ "default":{name:"Dr. Laura Bennett",title:"Interviewer",skin:"#D9A066",hair:"#3B2416",style:"bun",shirt:"#5B6BBF",steth:true,g:"f"}
+};
+PERSONAS["Closing"]=PERSONAS["Program Director"];PERSONAS["Rapid fire"]=PERSONAS["Faculty (rapid fire)"];
+ROLE_VOICE["Rapid fire"]="am_adam";
+function personaFor(role){
+  let p={...P_BASE,...(PERSONAS[role]||PERSONAS.default)};
+  const v=settings.voice;if(v&&v!=="auto"&&v!=="browser"){const g=/^(am|bm)_/.test(v)?"m":"f";if(g!==p.g){const alt=g==="m"?PERSONAS["Program Director"]:PERSONAS["Faculty"];p={...P_BASE,...alt,title:p.title}}}
+  return p;
+}
+function shade(hex,f){const n=parseInt(hex.slice(1),16),c=[n>>16,(n>>8)&255,n&255].map(x=>Math.max(0,Math.min(255,Math.round(x*f))));return "#"+c.map(x=>x.toString(16).padStart(2,"0")).join("")}
+function personaSVG(p){
+  const sk=p.skin,skD=shade(sk,.82),skL=shade(sk,1.12),h=p.hair,coat=p.coat||"#FFFFFF",kind=p.kind||"coat";
+  const backHair=p.style==="long"?`<path d="M58 100 C52 148 56 178 70 198 L150 198 C164 178 168 148 162 100 Z" fill="${h}"/><path d="M58 100 C55 130 60 160 68 180" fill="none" stroke="${shade(h,.7)}" stroke-width="2" opacity=".4"/>`:p.style==="bob"?`<path d="M60 98 C54 128 58 152 70 162 L150 162 C162 152 166 128 160 98 Z" fill="${h}"/>`:"";
+  const bun=p.style==="bun"?`<circle cx="110" cy="48" r="18" fill="${h}"/><circle cx="110" cy="48" r="12" fill="${shade(h,1.15)}" opacity=".35"/>`:"";
+  const top=`<path d="M64 102 C60 60 88 48 110 48 C136 48 160 60 156 104 C150 84 134 72 110 72 C88 72 70 84 64 102 Z" fill="${h}"/>`;
+  const body=kind==="scrubs"
+    ?`<path d="M22 250 C28 192 64 172 110 172 C156 172 192 192 198 250 Z" fill="${coat}"/><path d="M90 174 L110 202 L130 174" fill="none" stroke="${shade(coat,.72)}" stroke-width="3.5"/><path d="M70 200 H150" stroke="${shade(coat,.85)}" stroke-width="1.5" opacity=".5"/>`
+    :kind==="blazer"
+    ?`<path d="M22 250 C28 192 64 172 110 172 C156 172 192 192 198 250 Z" fill="${coat}"/><path d="M88 172 L110 212 L132 172 Z" fill="${p.shirt}"/><path d="M88 172 L102 236 M132 172 L118 236" stroke="${shade(coat,.65)}" stroke-width="2.5"/><path d="M110 212 L110 250" stroke="${shade(coat,.75)}" stroke-width="1.5" opacity=".4"/>`
+    :`<path d="M22 250 C28 192 64 172 110 172 C156 172 192 192 198 250 Z" fill="${coat}" stroke="#D0D5E0" stroke-width="1"/><path d="M90 172 L110 208 L130 172 Z" fill="${p.shirt}"/>${p.tie?`<path d="M105 184 L115 184 L118 220 L110 230 L102 220 Z" fill="${p.tie}"/><path d="M105 184 L115 184 L113 190 L107 190 Z" fill="${shade(p.tie,1.2)}"/>`:""}<path d="M90 172 L102 242 M130 172 L118 242" stroke="#C8CEDA" stroke-width="2"/><rect x="134" y="204" width="28" height="10" rx="2" fill="#B8C4E8"/>`;
+  const steth=p.steth?`<path d="M86 176 C78 198 82 222 96 232 M134 176 C142 198 138 222 124 232 M96 232 C102 240 118 240 124 232" fill="none" stroke="#4A5568" stroke-width="3" stroke-linecap="round"/><circle cx="110" cy="238" r="5.5" fill="#8A93A3"/><circle cx="110" cy="238" r="3" fill="#C5CAD3"/>`:"";
+  const beard=p.beard?`<path d="M74 124 C78 158 94 168 110 168 C126 168 142 158 146 124 C140 148 126 152 110 152 C94 152 80 148 74 124 Z" fill="${h}" opacity=".88"/>`:"";
+  const glasses=p.glasses?`<g fill="none" stroke="#2A303C" stroke-width="2.2"><rect x="82" y="98" width="24" height="17" rx="7"/><rect x="114" y="98" width="24" height="17" rx="7"/><path d="M106 106 L114 106"/><path d="M82 106 L74 102 M138 106 L146 102" stroke-width="1.8"/></g>`:"";
+  return `<svg viewBox="0 0 220 250" role="img" aria-label="${esc(p.name)}, ${esc(p.title)}">
+  <defs>
+    <radialGradient id="skG" cx="40%" cy="35%" r="60%"><stop offset="0%" stop-color="${skL}"/><stop offset="70%" stop-color="${sk}"/><stop offset="100%" stop-color="${skD}"/></radialGradient>
+    <radialGradient id="bgG" cx="50%" cy="40%" r="55%"><stop offset="0%" stop-color="#3a4560" stop-opacity=".5"/><stop offset="100%" stop-color="#1a1f2e" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="110" cy="120" rx="100" ry="108" fill="url(#bgG)"/>
+  <g class="pv-head">${backHair}${bun}</g>
+  <g class="pv-body">${body}${steth}<rect x="98" y="148" width="24" height="34" rx="10" fill="${skD}"/></g>
+  <g class="pv-head">
+    <ellipse cx="66" cy="112" rx="8" ry="12" fill="${skD}"/><ellipse cx="154" cy="112" rx="8" ry="12" fill="${skD}"/>
+    <ellipse cx="110" cy="108" rx="44" ry="52" fill="url(#skG)"/>${beard}${top}
+    <path d="M84 92 Q94 86 104 91 M116 91 Q126 86 136 92" fill="none" stroke="${shade(h,.85)}" stroke-width="3.2" stroke-linecap="round"/>
+    <g class="pv-eyes">
+      <ellipse cx="94" cy="106" rx="5" ry="5.8" fill="#fff"/><ellipse cx="126" cy="106" rx="5" ry="5.8" fill="#fff"/>
+      <ellipse cx="94" cy="107" rx="3.2" ry="3.8" fill="#2C1810"/><ellipse cx="126" cy="107" rx="3.2" ry="3.8" fill="#2C1810"/>
+      <circle cx="95.2" cy="105.2" r="1.4" fill="#fff"/><circle cx="127.2" cy="105.2" r="1.4" fill="#fff"/>
+    </g>
+    ${glasses}
+    <path d="M110 110 Q105 122 110 125" fill="none" stroke="${skD}" stroke-width="2.2" stroke-linecap="round"/>
+    <ellipse cx="86" cy="124" rx="8" ry="5" fill="#E07070" opacity=".16"/><ellipse cx="134" cy="124" rx="8" ry="5" fill="#E07070" opacity=".16"/>
+    <ellipse class="pv-mouth" cx="110" cy="138" rx="8" ry="1.6" fill="#6B3030"/>
+    <path class="pv-smile" d="M99 136 Q110 144 121 136" fill="none" stroke="#6B3030" stroke-width="2.1" stroke-linecap="round"/>
+  </g>
+</svg>`;
+}
+let curPersona=null;
+function setPersona(role){const p=personaFor(role);const key=p.name+p.title;if(curPersona===key)return;curPersona=key;$("ivAvatar").innerHTML=personaSVG(p);$("ivName").textContent=p.name;$("ivTitle").textContent=p.title}
+function animLoop(){
+  const tile=$("ivTile"),now=performance.now();
+  if(!$("room").hidden){
+    const m=tile.querySelector(".pv-mouth"),sm=tile.querySelector(".pv-smile");
+    let open=0;
+    if(ivSpeaking){
+      if(ttsPlaying&&ttsAn){ttsAn.getFloatTimeDomainData(mBuf);let s=0;for(const v of mBuf)s+=v*v;open=Math.min(1,Math.sqrt(s/mBuf.length)*8)}
+      else open=.2+.6*Math.abs(Math.sin(now/85))*(.5+.5*Math.sin(now/33));
+    }
+    if(m){m.setAttribute("ry",(1.5+open*7.5).toFixed(1));m.setAttribute("rx",(8+open*3).toFixed(1));m.style.opacity=open>.04?1:0}
+    if(sm)sm.style.opacity=open>.04?0:1;
+    tile.classList.toggle("listening",state==="recording"&&!ivSpeaking);
+    tile.classList.toggle("speaking",!!ivSpeaking);
+    if(now>nextBlink){tile.classList.add("blink");setTimeout(()=>tile.classList.remove("blink"),120);nextBlink=now+1800+Math.random()*4000}
+    if(state==="recording"&&!ivSpeaking&&now>nextNod){tile.classList.add("nod");setTimeout(()=>tile.classList.remove("nod"),850);nextNod=now+4500+Math.random()*7000}
+  }
+  requestAnimationFrame(animLoop);
+}
+requestAnimationFrame(animLoop);
 const IV={"Program Director":["Program Director","PD"],"Associate Program Director":["Associate Program Director","APD"],"Faculty (rapid fire)":["Faculty member","FM"],"Faculty":["Faculty member","FM"],"Resident":["Resident","RS"],"Program Coordinator":["Program Coordinator","PC"],"Closing":["Program Director","PD"],"Rapid fire":["Faculty member","FM"],"English clarity drill":["Clarity coach","EN"]};
 function setItem(it){
-  const iv=IV[it.role]||["Interviewer","IV"];$("ivName").textContent=iv[0];$("ivAvatar").textContent=iv[1];
+  setPersona(it.role);
   item=it;$("question").className=it.drill?"q drillq":"q";showQText();
-  $("role").style.display=it.role?"":"none";$("role").textContent=it.role||"";
-  if(IV[it.role]&&IV[it.role][0]===it.role)$("role").style.display="none";
+  const showRole=!!it.role&&!it.drill&&!isReal();
+  $("role").style.display=showRole?"":"none";$("role").textContent=it.role||"";
   $("tipsWrap").style.display=it.tips?"":"none";$("tips").style.display="none";$("btnTips").textContent="Show points to include";$("tips").textContent=it.tips||"";
   const t=it.target;$("timerNote").textContent=it.drill?"read clearly at a natural pace":t[1]<=45?"rapid fire: aim for 10 to 45 s":"aim for 1 to 2 min";
   $("timer").textContent="0:00";updateStart();
 }
 $("btnTips").onclick=()=>{const s=$("tips").style.display==="none";$("tips").style.display=s?"block":"none";$("btnTips").textContent=s?"Hide points to include":"Show points to include"};
-function pickSingle(){setTimeout(()=>prefetch(item),0);const c=$("cat").value;let P=c==="Mixed"?Object.keys(QB).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
+function pickSingle(){if(state!=="idle")return;setTimeout(()=>prefetch(item),0);const c=$("cat").value;let P=c==="Mixed"?cats().filter(x=>x!=="My questions"||mine.questions.length).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
 $("btnNext").onclick=pickSingle;
 function updateStart(){$("btnStart").disabled=!(stream&&item&&state==="idle")}
 $("mode").onchange=()=>{const m=$("mode").value;setRealUI(false);clearTimeout(autoTimer);session=null;$("singleCtl").style.display=m==="single"?"":"none";$("btnSession").style.display=m==="single"?"none":"";$("btnSession").textContent=m==="drill"?"Start drill":m==="real"?"Set up interview":"Start session";$("progress").textContent="";hideNav()};
@@ -519,13 +641,13 @@ function buildSession(mode){
   const used=new Set(),items=[];const add=(role,arr)=>arr.forEach(x=>items.push({...x,role,target:targetFor(x.cat)}));
   const mineN=n=>mine.questions.length?take("My questions",n,used):[];
   if(mode==="rapid")add("Rapid fire",take("Rapid fire",8,used));
-  if(mode==="mini"){used.add("Tell me about yourself.");add("Program Director",[{q:"Tell me about yourself.",cat:"Getting to know you"}]);add("Associate Program Director",take("Behavioral",1,used));add("Faculty",take("Pediatric scenarios",1,used));add("Faculty (rapid fire)",take("Rapid fire",2,used));add("Program Coordinator",take("Program and advocacy",1,used))}
+  if(mode==="mini"){used.add("Tell me about yourself.");add("Program Director",[{q:"Tell me about yourself.",cat:"Getting to know you"},...take("Getting to know you",1,used)]);add("Associate Program Director",take("Behavioral",1,used));add("Faculty",take(clinicalCat(),1,used));add("Faculty (rapid fire)",take("Rapid fire",2,used));add("Resident",take("Team and wellness",1,used));add("Program Coordinator",take("Program and advocacy",1,used))}
   if(mode==="full"||mode==="real"){
     used.add("Tell me about yourself.");
     add("Program Director",[{q:"Tell me about yourself.",cat:"Getting to know you"},...take("Getting to know you",3,used),...take("Visa and gaps (general)",1,used),...mineN(1)]);
     add("Associate Program Director",[...take("Behavioral",4,used),...mineN(1)]);
     add("Faculty (rapid fire)",take("Rapid fire",6,used));
-    add("Faculty",[...take("Pediatric scenarios",3,used),...mineN(1)]);
+    add("Faculty",[...take(clinicalCat(),3,used),...mineN(1)]);
     add("Resident",take("Team and wellness",3,used));
     add("Program Coordinator",take("Program and advocacy",3,used));
     add("Closing",take("Closing",1,used));
@@ -538,12 +660,12 @@ $("btnSession").onclick=()=>{
   clearTimeout(autoTimer);session=buildSession($("mode").value);$("summary").style.display="none";$("report").style.display="none";
   setRealUI(isReal());loadItem();
 };
-function setRealUI(on){document.body.classList.toggle("real",on);$("btnStart").textContent=on?"Begin interview":"Start answer";$("btnStop").textContent=on?"Done, next question":"Stop";$("btnEndReal").style.display=on?"":"none";
-  if(on)$("status").textContent="Press Begin interview. Each question is spoken, then recording starts right away. When you finish an answer, press Done (or the space bar), or stay silent for 7 seconds.";}
+function setRealUI(on){document.body.classList.toggle("real",on);$("btnStart").textContent=on?"Begin interview":"Start answer";$("btnStop").textContent=on?"Done":"Stop";$("btnEndReal").style.display=on?"":"none";
+  if(on)$("status").textContent="Interview in progress. When you finish an answer, press Done (or the space bar). After about 7 seconds of silence, the next question begins.";}
 function loadItem(){prefetch(session.items[session.i],session.i);if(session.items[session.i+1])prefetch(session.items[session.i+1],session.i+1);
   if(isReal()){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");if(session.i>0)startAnswer();return}
 const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
-  if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="New interviewer: "+it.role+".";
+  if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="Next: "+it.role+".";
   if(isRapid(it.cat)&&session.i>0&&isRapid(session.items[session.i-1].cat))startAnswer();}
 function hideNav(){["btnNextQ","btnPause","btnEnd"].forEach(b=>$(b).style.display="none")}
 function showNav(){
@@ -815,6 +937,7 @@ function buildAnswerRecord(){
   calcOverall(r);
   results.push(r);if(results.length>300)results=results.slice(-300);store.set("results_v1",results);
   attachVideo(r);if(session)session.recs.push(r);makeSheet(r,session?session.recs.length:1);
+  if($("optDl").checked&&!isReal()&&r.text){const base=S.base||baseName(r.q,r.mode);setTimeout(()=>saveDocx([r],base,"My interview answer"),700)}
   const bar=Object.keys(EXP_COL).filter(n=>F.exp[n]>.005).map(n=>`<span style="width:${F.exp[n]*100}%;background:${EXP_COL[n]}" title="${n}"></span>`).join("")||'<span style="width:100%;background:var(--line)"></span>';
   const leg=Object.keys(EXP_COL).filter(n=>F.exp[n]>.01).map(n=>`<span><i style="background:${EXP_COL[n]}"></i>${n} ${Math.round(F.exp[n]*100)}%</span>`).join("");
   HTML.set(r.t,`<p class="status"><strong>Your answer:</strong> ${t?hl(t):"(no transcript)"}</p><h3 class="group">Delivery (face, eyes, voice)</h3><div class="metrics">${cards(F.D)}</div><h3 class="group">English clarity</h3><div class="metrics">${cards(EN.E)||'<p class="status">No speech captured.</p>'}</div><div style="margin-top:1rem"><strong>Expression mix</strong><div class="bar">${bar}</div><div class="legend">${leg}</div></div>`);
@@ -912,6 +1035,35 @@ $("btnAI").onclick=()=>lastRec&&scoreWithAI(lastRec,true);
 async function copyText(s,el){try{await navigator.clipboard.writeText(s);el.textContent="Copied. Paste it into a Claude chat."}catch(e){$("aiOut").innerHTML="<p>Copy this into a Claude chat:</p><textarea style='min-height:12rem'>"+esc(s)+"</textarea>"}}
 $("btnCopy").onclick=()=>lastRec&&copyText(answerPrompt(lastRec),$("aiStatus"));
 
+// ---------- Word file of your answers (bullet points) ----------
+let docxLoading=null;
+function loadDocx(){if(window.docx)return Promise.resolve(window.docx);if(!docxLoading)docxLoading=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/docx@9.9.0/dist/index.iife.js";s.onload=()=>window.docx?res(window.docx):rej(new Error("Word library did not load"));s.onerror=()=>{docxLoading=null;rej(new Error("Word library did not load"))};document.head.appendChild(s)});return docxLoading}
+function toBullets(text){
+  const t=String(text||"").replace(/[\u2014\u2013]/g,", ").replace(/\s+/g," ").trim();if(!t)return [];
+  let parts=t.split(/(?<=[.!?])\s+(?=[A-Z0-9"'])/);
+  if(parts.length===1&&countWords(t)>30){const w=t.split(" ");parts=[];for(let i=0;i<w.length;i+=18)parts.push(w.slice(i,i+18).join(" "))}
+  const out=[];for(const p of parts){if(out.length&&countWords(p)<4)out[out.length-1]+=" "+p;else out.push(p)}
+  return out.map(s=>s.charAt(0).toUpperCase()+s.slice(1));
+}
+async function makeDocx(R,heading){
+  const d=await loadDocx(),{Document,Packer,Paragraph,TextRun,AlignmentType,LevelFormat}=d;
+  const P=(runs,opt={})=>new Paragraph({spacing:{after:120},...opt,children:runs});
+  const now=new Date(),kids=[P([new TextRun({text:heading,bold:true,size:28})],{spacing:{after:80}}),P([new TextRun(`${now.toLocaleDateString()} | ${settings.specialty} residency interview practice`)],{spacing:{after:240}})];
+  R.forEach((r,i)=>{
+    kids.push(P([new TextRun({text:(R.length>1?`Question ${i+1}`:"Question")+(r.role?` (${r.role})`:"")+": ",bold:true}),new TextRun(String(r.q).replace(/[\u2014\u2013]/g,", "))],{spacing:{before:i?240:0,after:120}}));
+    kids.push(P([new TextRun({text:"My answer:",bold:true})],{spacing:{after:60}}));
+    const b=toBullets(r.text);
+    if(b.length)b.forEach(s=>kids.push(new Paragraph({numbering:{reference:"bul",level:0},alignment:AlignmentType.JUSTIFIED,spacing:{after:60},children:[new TextRun(s)]})));
+    else kids.push(P([new TextRun("(No transcript was captured.)")]));
+    kids.push(P([new TextRun(`Length ${fmt(r.dur||0)}. Scores: overall ${r.overall??"--"}, content ${r.content??"--"}, English clarity ${r.english??"--"}, delivery ${r.delivery??"--"}.`)],{spacing:{before:60,after:120}}));
+  });
+  const doc=new Document({styles:{default:{document:{run:{font:"Times New Roman",size:22,color:"000000"}}}},
+    numbering:{config:[{reference:"bul",levels:[{level:0,format:LevelFormat.BULLET,text:"\u2022",alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}]},
+    sections:[{properties:{page:{margin:{top:1440,bottom:1440,left:1440,right:1440}}},children:kids}]});
+  return Packer.toBlob(doc);
+}
+async function saveDocx(R,name,heading){try{saveBlob(await makeDocx(R,heading),name+".docx");return true}catch(e){$("status").textContent="Word file could not be made: "+e.message;return false}}
+
 // ---------- feedback pack for Claude (text + still frames; Claude cannot watch video files) ----------
 const SHEETS=new Map();
 function makeSheet(r,num){
@@ -983,6 +1135,7 @@ async function processReal(){
   }
   $("status").textContent="";$("question").textContent="Interview finished. Review your answers below.";
   renderHistory();showSummary();
+  if($("optDl").checked&&session.recs.some(r=>r.text)){const d=new Date(),p=n=>String(n).padStart(2,"0");saveDocx(session.recs,`interview-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}_real_all-answers`,"My interview answers")}
   if(settings.speakFb){const a=avg(session.recs.map(r=>r.overall));speak(`Interview complete. Your average score is ${a==null?"not available yet":Math.round(a)}. Review your answers below.`)}
   if(aiAvailable()&&settings.autoAI){const P=session.recs.filter(r=>r.text&&r.contentSrc!=="ai");for(let i=0;i<P.length;i++){$("sumStatus").textContent=`Claude is scoring answer ${i+1} of ${P.length}...`;await scoreWithAI(P[i],false)}showSummary()}
   session.processing=false;
@@ -1032,12 +1185,26 @@ function updateChecklist(){
 function showView(v){$("home").hidden=v!=="home";$("room").hidden=v!=="room";window.scrollTo(0,0)}
 $("btnEnter").onclick=async()=>{
   saveSettings();showView("room");
+  $("progress").textContent="Joining room...";
+  $("status").textContent="Connecting camera and microphone...";
   if(!stream)await startCamera();
   if(!stream)return;
   if(audioCtx.state==="suspended")await audioCtx.resume();
   clearTimeout(autoTimer);$("report").style.display="none";$("summary").style.display="none";
-  if($("mode").value==="single"){session=null;setRealUI(false);pickSingle()}else $("btnSession").onclick();
   $("btnSession").style.display="none";
+  const m=$("mode").value;
+  const modeLabel={single:"Single question",rapid:"Rapid fire",mini:"Mini mock interview",full:"Full interview day",real:"Real interview",drill:"English clarity drill"}[m]||m;
+  if(m==="single"){
+    session=null;setRealUI(false);pickSingle();
+    $("progress").textContent=modeLabel;
+  }else{
+    session=buildSession(m);setRealUI(m==="real");
+    loadItem();
+    $("progress").textContent=modeLabel+" · Question 1 of "+session.items.length+(session.items[0].role?" · "+session.items[0].role:"");
+  }
+  $("status").textContent="Interview starting...";
+  // Thalamus-style: once in the room, the interview begins — question is spoken and recording starts
+  setTimeout(()=>{if(state==="idle"&&item&&!$("room").hidden)startAnswer()},700);
 };
 $("btnHome").onclick=()=>{if(state!=="idle"){$("status").textContent="Finish or stop the current answer first.";return}stopVoice();clearTimeout(autoTimer);showView("home");renderHistory();updateChecklist()};
 const dz=$("dropPack");
