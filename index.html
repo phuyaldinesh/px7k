@@ -292,7 +292,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
       <p class="status" id="histNote" style="margin:0">No answers saved yet.</p>
       <div class="tablewrap"><table class="tbl" id="hist"></table></div>
     </section>
-    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 14.2.</p>
+    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 15.</p>
   </main>
 </div>
 
@@ -442,7 +442,7 @@ const targetFor=cat=>isRapid(cat)?[10,45]:[45,150];
 let voices=[];
 function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}
 if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
-function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();let done=false;const finish=()=>{if(done)return;done=true;res()};const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=1;u.onend=u.onerror=finish;speechSynthesis.speak(u);setTimeout(finish,Math.min(20000,Math.max(2500,text.length*80))})})
+function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();let done=false;const finish=()=>{if(done)return;done=true;res()};const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=1;u.onend=u.onerror=finish;speechSynthesis.speak(u);setTimeout(finish,Math.min(20000,Math.max(2500,text.length*80)))})}
 function spokenText(it,idx){if(it.repeat)return "Sure. "+it.q;
   if(idx==null)idx=session?session.i:0;
   if(!session||!it.role||it.drill)return it.q;const prev=idx>0?session.items[idx-1].role:null;
@@ -632,7 +632,7 @@ function setItem(it){
 $("btnTips").onclick=()=>{const s=$("tips").style.display==="none";$("tips").style.display=s?"block":"none";$("btnTips").textContent=s?"Hide points to include":"Show points to include"};
 function pickSingle(){if(state!=="idle")return;setTimeout(()=>prefetch(item),0);const c=$("cat").value;let P=c==="Mixed"?cats().filter(x=>x!=="My questions"||mine.questions.length).flatMap(pool):pool(c);if(!P.length)return;let it;do{it=rnd(P)}while(P.length>1&&item&&it.q===item.q);setItem({...it,target:targetFor(it.cat)})}
 $("btnNext").onclick=pickSingle;
-function updateStart(){$("btnStart").disabled=!(stream&&item&&state==="idle")}
+function updateStart(){$("btnStart").disabled=!(stream&&item&&state==="idle");if(state==="idle")$("btnStart").textContent=isReal()?"Begin interview":(session&&!session.recs.length&&!session.i?"Start interview":"Start answer")}
 $("mode").onchange=()=>{const m=$("mode").value;setRealUI(false);clearTimeout(autoTimer);session=null;$("singleCtl").style.display=m==="single"?"":"none";$("btnSession").style.display=m==="single"?"none":"";$("btnSession").textContent=m==="drill"?"Start drill":m==="real"?"Set up interview":"Start session";$("progress").textContent="";hideNav()};
 
 // ---------- sessions ----------
@@ -823,11 +823,13 @@ async function startAnswer(){
   if(($("optSpeak").checked||isReal())&&!item.drill){
     $("status").textContent="The interviewer is asking...";
     // Ensure voice model is ready; prefetch may still be in flight
-    if(settings.voice!=="browser"&&!kokoro&&!kokoroFailed){try{await loadKokoro()}catch(e){}}
+    if(settings.voice!=="browser"&&!kokoro&&!kokoroFailed){try{await Promise.race([loadKokoro(),new Promise(r=>setTimeout(r,4000))])}catch(e){}}
     await speakItem(item);
     if(state!=="countdown"){discardVideo();return}
   }
-  // No countdown pause — start recording immediately after the question
+  if($("prep").checked&&!isReal()){let left=2;$("timer").textContent="0:02";$("status").textContent="Look at the camera...";
+    await new Promise(res=>{tickTimer=setInterval(()=>{left--;$("timer").textContent="0:0"+left;if(left<=0||state!=="countdown"){clearInterval(tickTimer);res()}},1000)});
+    if(state!=="countdown"){discardVideo();return}}
   beginRecording();
 }
 function beginRecording(){
@@ -880,6 +882,7 @@ $("btnStop").onclick=async()=>{
   const vStopped=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
   await new Promise(r=>setTimeout(r,700));await stopped;await vStopped;
   S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;compText="";
+  if(S.video){autoDownload(S.video,item.q,session?session.mode:"single");S.dlDone=true}
   S.interim="";S.liveText=textAll();
   if(audioChunks.length){
     try{const t=await localTranscribe(new Blob(audioChunks,{type:audioChunks[0].type}));if(countWords(t)>=Math.min(3,countWords(S.liveText))){S.finals=[t];S.local=true}}
@@ -888,7 +891,7 @@ $("btnStop").onclick=async()=>{
   renderTranscript();state="idle";resetButtons();
   item.drill?finishDrill():finishAnswer();
 };
-function resetButtons(){$("btnStart").style.display="";$("btnStart").textContent=session?"Start interview":"Start answer";$("btnStop").style.display="none";updateStart()}
+function resetButtons(){$("btnStart").style.display="";$("btnStart").textContent=isReal()?"Begin interview":(session&&session.recs.length===0?"Start interview":"Start answer");$("btnStop").style.display="none";updateStart()}
 async function localTranscribe(blob){
   $("status").textContent="Creating your transcript on this laptop...";
   if(!whisper){
@@ -1241,7 +1244,7 @@ $("btnEnter").onclick=async()=>{
     $("progress").textContent=modeLabel+" · Question 1 of "+session.items.length+(session.items[0]&&session.items[0].role?" · "+session.items[0].role:"");
   }
   // One-click start — do not auto-begin
-  $("btnStart").textContent="Start interview";
+  $("btnStart").textContent=isReal()?"Begin interview":"Start interview";
   $("btnStart").style.display="";
   $("btnStart").disabled=!(stream&&item);
   $("btnStop").style.display="none";
@@ -1300,7 +1303,8 @@ $("btnWipe").onclick=()=>{if(confirm("Delete your settings, API key, private que
 $("optSpeak").checked=settings.speak!==false;$("optShow").checked=settings.show!==false;$("optVideo").checked=settings.video!==false;$("optDl").checked=settings.autoDl!==false;$("prep").checked=!!settings.prep;$("setCues").value=settings.cues||"screen";$("setSpeakFb").checked=settings.speakFb!==false;
 renderCats();loadSettingsUI();renderHistory();$("mode").onchange();
 try{audioCtx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
-// Do not download interviewer voice until you join — keeps the home page fast
+// Load the interviewer voice quietly a few seconds after the home page opens, so the first question is not delayed
+if(settings.voice!=="browser")setTimeout(()=>{if(!kokoroLoading)loadKokoro()},3000);
 updateChecklist();
 
 </script>
