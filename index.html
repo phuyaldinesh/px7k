@@ -172,6 +172,7 @@ mark{background:color-mix(in srgb,var(--warn) 30%,transparent);color:inherit;bor
 .tbl th,.tbl td{text-align:left;padding:.35rem .4rem;border-bottom:1px solid var(--line);vertical-align:top}
 .tablewrap{overflow-x:auto}
 body.real #timer,body.real #timerNote,body.real .live,body.real #transcript,body.real #tipsWrap,body.real #qCtl,body.real .flash,body.real .cue{display:none!important}
+body.real #btnHearBar{display:inline-block!important}
 body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -272,14 +273,14 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
 
   <main class="homeMain">
     <h1>Ready for your interview?</h1>
-    <p class="lead">Choose your settings on the left. They save automatically. Then step into the interview room.</p>
+    <p class="lead">Choose your settings on the left. They save automatically. Click Join interview — the session starts as soon as you enter the room.</p>
     <div class="checklist">
       <div class="ck wait" id="ckCam"><i></i><span></span></div>
       <div class="ck wait" id="ckVoice"><i></i><span></span></div>
       <div class="ck wait" id="ckPack"><i></i><span></span></div>
       <div class="ck wait" id="ckClaude"><i></i><span></span></div>
     </div>
-    <button class="primary enter" id="btnEnter">Enter interview room</button>
+    <button class="primary enter" id="btnEnter">Join interview</button>
 
     <div class="card">
       <h2>How to get Claude's feedback</h2>
@@ -292,7 +293,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
       <p class="status" id="histNote" style="margin:0">No answers saved yet.</p>
       <div class="tablewrap"><table class="tbl" id="hist"></table></div>
     </section>
-    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 13.3.</p>
+    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 14.</p>
   </main>
 </div>
 
@@ -545,8 +546,8 @@ const P_BASE={skin:"#C68B59",hair:"#2B2B2B",style:"short",coat:"#FFFFFF",shirt:"
 const PERSONAS={
  "Program Director":{name:"Dr. Daniel Reed",title:"Program Director",skin:"#C68B59",hair:"#6B6B6B",style:"short",shirt:"#3E6FB0",tie:"#7A2E3B",glasses:true,g:"m"},
  "Associate Program Director":{name:"Dr. Amara Okafor",title:"Associate Program Director",skin:"#8D5524",hair:"#1E1A17",style:"bun",shirt:"#2A9D8F",g:"f"},
- "Faculty":{name:"Dr. Emily Hart",title:"Faculty, General Pediatrics",skin:"#F1C27D",hair:"#7B4B2A",style:"long",shirt:"#E9A6B8",steth:true,g:"f"},
- "Faculty (rapid fire)":{name:"Dr. Ravi Menon",title:"Faculty, Hospital Medicine",skin:"#B07A4C",hair:"#1B1B1B",style:"short",shirt:"#6C7A89",steth:true,beard:true,g:"m"},
+ "Faculty":{name:"Dr. Emily Hart",title:"Faculty",skin:"#F1C27D",hair:"#7B4B2A",style:"long",shirt:"#E9A6B8",steth:true,g:"f"},
+ "Faculty (rapid fire)":{name:"Dr. Ravi Menon",title:"Faculty",skin:"#B07A4C",hair:"#1B1B1B",style:"short",shirt:"#6C7A89",steth:true,beard:true,g:"m"},
  "Resident":{name:"Dr. Priya Shah",title:"PGY-2 Resident",skin:"#E0AC69",hair:"#111111",style:"long",coat:"#4F86C6",shirt:"#3F72AE",kind:"scrubs",g:"f"},
  "Program Coordinator":{name:"Sofia Ramirez",title:"Program Coordinator",skin:"#C68B59",hair:"#2A1B12",style:"bob",coat:"#2F3E63",shirt:"#F4F1EA",kind:"blazer",g:"f"},
  "English clarity drill":{name:"Ms. Grace Kim",title:"English clarity coach",skin:"#F1C27D",hair:"#1A1A1A",style:"bob",coat:"#8FBFAE",shirt:"#FFFFFF",kind:"blazer",g:"f"},
@@ -599,7 +600,8 @@ function personaSVG(p){
 </svg>`;
 }
 let curPersona=null;
-function setPersona(role){const p=personaFor(role);const key=p.name+p.title;if(curPersona===key)return;curPersona=key;$("ivAvatar").innerHTML=personaSVG(p);$("ivName").textContent=p.name;$("ivTitle").textContent=p.title}
+function facultyTitle(){const s=settings.specialty||"Pediatrics";return s==="Pediatrics"?"Faculty, General Pediatrics":s==="Family Medicine"?"Faculty, Family Medicine":s==="Internal Medicine"?"Faculty, Internal Medicine":"Faculty, "+s}
+function setPersona(role){const p=personaFor(role);let title=p.title;if(role==="Faculty"||role==="Faculty (rapid fire)")title=facultyTitle();else if(role==="Rapid fire")title=facultyTitle();const key=p.name+title;if(curPersona===key)return;curPersona=key;$("ivAvatar").innerHTML=personaSVG({...p,title});$("ivName").textContent=p.name;$("ivTitle").textContent=title}
 function animLoop(){
   const tile=$("ivTile"),now=performance.now();
   if(!$("room").hidden){
@@ -663,18 +665,27 @@ $("btnSession").onclick=()=>{
 function setRealUI(on){document.body.classList.toggle("real",on);$("btnStart").textContent=on?"Begin interview":"Start answer";$("btnStop").textContent=on?"Done":"Stop";$("btnEndReal").style.display=on?"":"none";
   if(on)$("status").textContent="Interview in progress. When you finish an answer, press Done (or the space bar). After about 7 seconds of silence, the next question begins.";}
 function loadItem(){prefetch(session.items[session.i],session.i);if(session.items[session.i+1])prefetch(session.items[session.i+1],session.i+1);
-  if(isReal()){const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");if(session.i>0)startAnswer();return}
-const it=session.items[session.i];setItem(it);$("progress").textContent=`Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
-  if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="Next: "+it.role+".";
+  const modeLabel={rapid:"Rapid fire",mini:"Mini mock interview",full:"Full interview day",real:"Real interview",drill:"English clarity drill"}[session.mode]||session.mode;
+  const it=session.items[session.i];setItem(it);
+  $("progress").textContent=modeLabel+` · Question ${session.i+1} of ${session.items.length}`+(it.role?" · "+it.role:"");
+  if(isReal()){if(session.i>0)startAnswer();return}
+  if(session.i>0&&session.items[session.i-1].role!==it.role&&!it.drill)$("status").textContent="Next interviewer: "+it.role+".";
   if(isRapid(it.cat)&&session.i>0&&isRapid(session.items[session.i-1].cat))startAnswer();}
 function hideNav(){["btnNextQ","btnPause","btnEnd"].forEach(b=>$(b).style.display="none")}
 function showNav(){
   $("btnNextQ").onclick=nextQ;hideNav();if(!session)return;const last=session.i>=session.items.length-1;
   $("btnNextQ").style.display="";$("btnNextQ").textContent=last?"See session summary":"Next question";$("btnEnd").style.display=last?"none":"";
-  if(!last&&isRapid(item.cat)&&isRapid(session.items[session.i+1].cat)){let n=4;$("btnPause").style.display="";const tick=()=>{$("btnNextQ").textContent="Next in "+n+"…";if(n--<=0){nextQ();return}autoTimer=setTimeout(tick,1000)};tick();}
+  if(!last){
+    // Auto-advance: faster for rapid fire, slightly longer pause for full answers
+    const rapid=isRapid(item.cat)&&isRapid(session.items[session.i+1].cat);
+    let n=rapid?3:5;$("btnPause").style.display="";
+    const tick=()=>{$("btnNextQ").textContent="Next in "+n+"…";if(n--<=0){nextQ();return}autoTimer=setTimeout(tick,1000)};tick();
+  }
 }
 $("btnPause").onclick=()=>{clearTimeout(autoTimer);$("btnNextQ").textContent="Next question";$("btnPause").style.display="none"};
-function nextQ(){clearTimeout(autoTimer);hideNav();if(session.i>=session.items.length-1){showSummary();return}session.i++;$("report").style.display="none";loadItem();$("question").scrollIntoView({block:"center",behavior:"auto"})}
+function nextQ(){clearTimeout(autoTimer);hideNav();if(session.i>=session.items.length-1){showSummary();return}session.i++;$("report").style.display="none";loadItem();$("question").scrollIntoView({block:"center",behavior:"auto"});
+  // Thalamus-style: next station starts automatically
+  if(!isReal()){const m=$("mode").value;const modeLabel={rapid:"Rapid fire",mini:"Mini mock interview",full:"Full interview day",drill:"English clarity drill"}[m]||m;$("progress").textContent=modeLabel+" · Question "+(session.i+1)+" of "+session.items.length+(item&&item.role?" · "+item.role:"");$("status").textContent="Next question starting...";setTimeout(()=>{if(state==="idle"&&item&&!$("room").hidden)startAnswer()},900)}}
 $("btnNextQ").onclick=nextQ;
 $("btnEnd").onclick=()=>{clearTimeout(autoTimer);showSummary()};
 
@@ -1206,7 +1217,17 @@ $("btnEnter").onclick=async()=>{
   // Thalamus-style: once in the room, the interview begins — question is spoken and recording starts
   setTimeout(()=>{if(state==="idle"&&item&&!$("room").hidden)startAnswer()},700);
 };
-$("btnHome").onclick=()=>{if(state!=="idle"){$("status").textContent="Finish or stop the current answer first.";return}stopVoice();clearTimeout(autoTimer);showView("home");renderHistory();updateChecklist()};
+$("btnHome").onclick=async()=>{
+  if(state==="recording"||state==="countdown"||state==="processing"){
+    if(!confirm("Leave the interview room? Your current answer may not be saved."))return;
+    stopVoice();clearInterval(audioTimer);clearInterval(tickTimer);clearTimeout(autoTimer);
+    try{rec&&rec.stop()}catch(e){}
+    try{if(mr&&mr.state!=="inactive")mr.stop()}catch(e){}
+    try{if(typeof vr!=="undefined"&&vr&&vr.state!=="inactive")vr.stop()}catch(e){}
+    state="idle";resetButtons();
+  }
+  stopVoice();clearTimeout(autoTimer);showView("home");renderHistory();updateChecklist();
+};
 const dz=$("dropPack");
 dz.onclick=()=>$("fileImport").click();dz.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("fileImport").click()}};
 dz.ondragover=e=>{e.preventDefault();dz.classList.add("over")};dz.ondragleave=()=>dz.classList.remove("over");
