@@ -292,7 +292,7 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
       <p class="status" id="histNote" style="margin:0">No answers saved yet.</p>
       <div class="tablewrap"><table class="tbl" id="hist"></table></div>
     </section>
-    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 15.</p>
+    <p class="hint" style="margin-top:1rem">Best in Google Chrome on a laptop. Scores are estimates. English clarity measures how understandable you are, never your accent. Version 16.</p>
   </main>
 </div>
 
@@ -399,6 +399,9 @@ body.real .q{font-weight:400;color:var(--muted);font-size:1.05rem}
 <script>
 /* MODELS: loaded from models.js when camera starts */
 
+// ---------- error banner ----------
+function showErr(msg){let b=document.getElementById("errBanner");if(!b){b=document.createElement("div");b.id="errBanner";b.setAttribute("role","alert");b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9999;background:#B4443A;color:#fff;padding:.55rem .9rem;border-radius:10px;font:14px/1.4 system-ui,sans-serif;max-width:92vw;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer";b.onclick=()=>b.remove();document.body.appendChild(b)}b.textContent="Something went wrong: "+msg+" (press Ctrl + Shift + R to reload; click to hide)"}
+window.addEventListener("error",e=>{if(e.filename&&e.filename!==location.href&&!e.filename.startsWith(location.origin))return;if(e.message&&!/ResizeObserver/.test(e.message))showErr(e.message)});
 // ---------- helpers ----------
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -442,7 +445,7 @@ const targetFor=cat=>isRapid(cat)?[10,45]:[45,150];
 let voices=[];
 function loadVoices(){if(!("speechSynthesis" in window))return;voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}
 if("speechSynthesis" in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
-function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();let done=false;const finish=()=>{if(done)return;done=true;res()};const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=1;u.onend=u.onerror=finish;speechSynthesis.speak(u);setTimeout(finish,Math.min(20000,Math.max(2500,text.length*80)))})}
+function speak(text){return new Promise(res=>{if(!("speechSynthesis" in window)||!text){res();return}speechSynthesis.cancel();let done=false,started=false;const finish=()=>{if(done)return;done=true;res()};const u=new SpeechSynthesisUtterance(text);const v=voices.find(x=>/en-US/i.test(x.lang))||null;if(v)u.voice=v;u.lang=v?v.lang:"en-US";u.rate=1;u.onstart=()=>{started=true};u.onend=u.onerror=finish;speechSynthesis.speak(u);setTimeout(()=>{if(!started)finish()},2000);setTimeout(finish,Math.min(20000,1200+text.split(/\s+/).length*400))})}
 function spokenText(it,idx){if(it.repeat)return "Sure. "+it.q;
   if(idx==null)idx=session?session.i:0;
   if(!session||!it.role||it.drill)return it.q;const prev=idx>0?session.items[idx-1].role:null;
@@ -458,17 +461,35 @@ $("btnHearBar").onclick=hearAgain;
 $("btnReveal").onclick=()=>{if(item)$("question").textContent=item.q;$("btnReveal").style.display="none"};
 
 
+// ---------- background workers: voice and transcription run off the main thread, so the page never freezes ----------
+const KOKORO_URL="https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js";
+const TRANSFORMERS_URL="https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
+function makeWorker(code){return new Worker(URL.createObjectURL(new Blob([code],{type:"text/javascript"})),{type:"module"})}
+const TTS_WORKER_CODE=`let tts=null,loading=null,q=Promise.resolve();
+async function load(){if(tts)return tts;if(!loading)loading=(async()=>{const {KokoroTTS}=await import("${KOKORO_URL}");tts=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm",progress_callback:p=>{if(p.status==="progress"&&p.file&&/onnx/.test(p.file))postMessage({type:"progress",pct:Math.round(p.progress||0)})}});return tts})();return loading}
+onmessage=e=>{const m=e.data;q=q.then(async()=>{try{if(m.type==="load"){await load();postMessage({type:"ready"})}else if(m.type==="gen"){const t=await load();const a=await t.generate(m.text,{voice:m.voice});const audio=a.audio;postMessage({type:"audio",id:m.id,audio,sr:a.sampling_rate},[audio.buffer])}}catch(err){postMessage({type:"error",id:m.id||0,message:String(err&&err.message||err)})}})}`;
+const ASR_WORKER_CODE=`let asr=null,loading=null,q=Promise.resolve();
+async function load(){if(asr)return asr;if(!loading)loading=(async()=>{const {pipeline}=await import("${TRANSFORMERS_URL}");asr=await pipeline("automatic-speech-recognition","Xenova/whisper-base.en",{progress_callback:p=>{if(p.status==="progress"&&p.file&&/onnx/.test(p.file))postMessage({type:"progress",pct:Math.round(p.progress||0)})}});return asr})();return loading}
+onmessage=e=>{const m=e.data;q=q.then(async()=>{try{if(m.type==="load"){await load();postMessage({type:"ready"})}else if(m.type==="asr"){const a=await load();const out=await a(m.audio,{chunk_length_s:30,stride_length_s:5});postMessage({type:"text",id:m.id,text:String(out&&out.text||"").trim()})}}catch(err){postMessage({type:"error",id:m.id||0,message:String(err&&err.message||err)})}})}`;
 // ---------- interviewer voice that can be recorded (Kokoro, runs on this laptop) ----------
 let voicePct=0,kokoroFailed=false,kokoro=null,kokoroLoading=null,curSrc=null,mixDest=null;const ttsCache=new Map();
 const ROLE_VOICE={"Program Director":"am_michael","Associate Program Director":"af_heart","Faculty (rapid fire)":"am_adam","Faculty":"bf_emma","Resident":"af_bella","Program Coordinator":"af_heart","Closing":"am_michael"};
+let ttsWorker=null,ttsId=0;const ttsReqs=new Map();
 function loadKokoro(){
   if(kokoroLoading)return kokoroLoading;
-  $("voiceNote").textContent="Loading interviewer voice (first time only, about 1 to 2 minutes)...";
-  kokoroLoading=(async()=>{try{
-    const {KokoroTTS}=await import("https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js");
-    kokoro=await KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{dtype:"q8",device:"wasm",progress_callback:p=>{if(p.status==="progress"&&p.file&&/onnx/.test(p.file)){voicePct=Math.round(p.progress||0);$("voiceNote").textContent="Downloading interviewer voice: "+voicePct+"% (first time only)";updateChecklist()}}});
-    $("voiceNote").textContent="Interviewer voice ready. Questions will be included in your videos.";prefetch(item);updateChecklist();
-  }catch(e){kokoro=null;kokoroFailed=true;$("voiceNote").textContent="Interviewer voice could not load ("+e.message+"). Using the browser voice, which is not saved in videos.";updateChecklist()}})();
+  $("voiceNote").textContent="Loading interviewer voice in the background (first time only)...";
+  kokoroLoading=new Promise(res=>{
+    const fail=msg=>{kokoroFailed=true;$("voiceNote").textContent="Interviewer voice could not load ("+msg+"). The browser voice is used instead (not saved in videos).";updateChecklist();res()};
+    try{ttsWorker=makeWorker(TTS_WORKER_CODE)}catch(e){fail(e.message);return}
+    ttsWorker.onmessage=e=>{const m=e.data;
+      if(m.type==="progress"){voicePct=m.pct;$("voiceNote").textContent="Downloading interviewer voice: "+voicePct+"% (first time only)";updateChecklist()}
+      else if(m.type==="ready"){kokoro={generate:(text,o)=>new Promise((ok,bad)=>{const id=++ttsId;ttsReqs.set(id,{ok,bad});ttsWorker.postMessage({type:"gen",id,text,voice:o.voice})})};
+        $("voiceNote").textContent="Interviewer voice ready. Questions are included in your videos.";if(item)prefetch(item,session?session.i:0);updateChecklist();res()}
+      else if(m.type==="audio"){const r=ttsReqs.get(m.id);if(r){ttsReqs.delete(m.id);r.ok({audio:m.audio,sampling_rate:m.sr})}}
+      else if(m.type==="error"){const r=ttsReqs.get(m.id);if(r){ttsReqs.delete(m.id);r.bad(new Error(m.message))}else if(!kokoro)fail(m.message)}};
+    ttsWorker.onerror=e=>{e.preventDefault&&e.preventDefault();if(!kokoro)fail(e.message||"worker error")};
+    ttsWorker.postMessage({type:"load"});
+  });
   return kokoroLoading;
 }
 function voiceFor(it){const v=settings.voice||"auto";if(v==="browser")return null;if(v==="auto")return (it&&ROLE_VOICE[it.role])||"af_heart";return v}
@@ -481,7 +502,7 @@ async function speakItem(it,idx){setSpeaking(true);try{await speakItem0(it,idx)}
 function setSpeaking(on){ivSpeaking=on;$("ivTile").classList.toggle("speaking",on)}
 async function speakItem0(it,idx){
   const text=spokenText(it,idx),v=voiceFor(it);
-  if(kokoro&&v){try{const buf=await ttsBuffer(text,v);if(state!=="countdown"&&state!=="idle"&&state!=="recording")return;await playBuf(buf);return}catch(e){}}
+  if(kokoro&&v){try{const buf=await Promise.race([ttsBuffer(text,v),new Promise(r=>setTimeout(()=>r(null),3500))]);if(buf){if(state!=="countdown"&&state!=="idle"&&state!=="recording")return;await playBuf(buf);return}}catch(e){}}
   await speak(text);
 }
 function stopVoice(){if("speechSynthesis" in window)speechSynthesis.cancel();try{curSrc&&curSrc.stop()}catch(e){}}
@@ -489,6 +510,7 @@ function stopVoice(){if("speechSynthesis" in window)speechSynthesis.cancel();try
 const comp=document.createElement("canvas"),cx=comp.getContext("2d");let compTimer=null,compText="",compPhase="",lastThumb=0;
 function wrapLines(t,maxW){const w=t.split(" "),L=[];let l="";for(const x of w){const tt=l?l+" "+x:x;if(cx.measureText(tt).width>maxW&&l){L.push(l);l=x}else l=tt}if(l)L.push(l);return L}
 function compDraw(){
+  if(state!=="recording"&&state!=="countdown")return;
   const v=$("video");if(v.readyState<2)return;
   if(comp.width!==v.videoWidth&&v.videoWidth){comp.width=v.videoWidth;comp.height=v.videoHeight}
   cx.drawImage(v,0,0,comp.width,comp.height);
@@ -619,6 +641,7 @@ function animLoop(){
   requestAnimationFrame(animLoop);
 }
 requestAnimationFrame(animLoop);
+try{setPersona("default")}catch(e){}
 const IV={"Program Director":["Program Director","PD"],"Associate Program Director":["Associate Program Director","APD"],"Faculty (rapid fire)":["Faculty member","FM"],"Faculty":["Faculty member","FM"],"Resident":["Resident","RS"],"Program Coordinator":["Program Coordinator","PC"],"Closing":["Program Director","PD"],"Rapid fire":["Faculty member","FM"],"English clarity drill":["Clarity coach","EN"]};
 function setItem(it){
   setPersona(it.role);
@@ -727,6 +750,7 @@ async function startCamera(){
     }catch(e){$("camStatus").textContent="Face tracking unavailable ("+e.message+"). Speech scoring still works."}
     updateChecklist();
   })();
+  setTimeout(()=>{try{loadASR()}catch(e){}},4000);
   // Voice: only when needed, non-blocking
   if(settings.voice!=="browser")loadKokoro();
   if(!item&&$("mode").value==="single")pickSingle();
@@ -746,7 +770,7 @@ async function initGaze(){
 }
 function gazeLoop(){
   const v=$("video");
-  if(gazer&&v.readyState>=2){try{
+  if(gazer&&v.readyState>=2&&!$("room").hidden&&!document.hidden){try{
     const r=gazer.detectForVideo(v,performance.now()),bs=r.faceBlendshapes&&r.faceBlendshapes[0];
     if(bs){const s={};bs.categories.forEach(c=>s[c.categoryName]=c.score);
       const up=(s.eyeLookUpLeft+s.eyeLookUpRight)/2,down=(s.eyeLookDownLeft+s.eyeLookDownRight)/2,blink=(s.eyeBlinkLeft+s.eyeBlinkRight)/2;
@@ -761,7 +785,7 @@ function gazeLoop(){
         if(recd)$("lRoll").textContent=G.rolls}
     }else G.away=false;
   }catch(e){}}
-  setTimeout(gazeLoop,90);
+  setTimeout(gazeLoop,($("room").hidden||document.hidden)?600:state==="recording"?100:250);
 }
 
 // ---------- face analysis ----------
@@ -772,8 +796,9 @@ async function analyzeFrame(){const v=$("video");if(!modelsReady||v.readyState<2
 function drawBox(r){const c=$("ov"),v=$("video");c.width=v.videoWidth;c.height=v.videoHeight;const x=c.getContext("2d");x.clearRect(0,0,c.width,c.height);if(!r)return;const b=r.detection.box;x.strokeStyle="rgba(93,184,159,.9)";x.lineWidth=3;x.strokeRect(b.x,b.y,b.width,b.height)}
 async function previewLoop(){
   if(state==="recording")return;
+  if($("room").hidden||document.hidden){setTimeout(previewLoop,800);return}
   try{const r=await analyzeFrame();drawBox(r);if(r){const hp=headPose(r.landmarks);$("lEye").textContent=!facing(hp)?"Turned":G.away?"Looking away":"Yes";$("lExp").textContent=topExp(r.expressions)}else if(modelsReady){$("lEye").textContent="No face";$("lExp").textContent="--"}}catch(e){}
-  setTimeout(previewLoop,250);
+  setTimeout(previewLoop,400);
 }
 async function recLoop(){
   if(state!=="recording")return;
@@ -783,7 +808,7 @@ async function recLoop(){
         if(S.lastNose)S.move+=Math.hypot(hp.nose.x-S.lastNose.x,hp.nose.y-S.lastNose.y)/hp.eye;S.lastNose=hp.nose;$("lExp").textContent=topExp(r.expressions)}
       $("lEye").textContent=Math.round(100*S.facing/S.frames)+"%"}
   }catch(e){}
-  setTimeout(recLoop,250);
+  setTimeout(recLoop,300);
 }
 
 // ---------- live coaching cues ----------
@@ -823,7 +848,7 @@ async function startAnswer(){
   if(($("optSpeak").checked||isReal())&&!item.drill){
     $("status").textContent="The interviewer is asking...";
     // Ensure voice model is ready; prefetch may still be in flight
-    if(settings.voice!=="browser"&&!kokoro&&!kokoroFailed){try{await Promise.race([loadKokoro(),new Promise(r=>setTimeout(r,4000))])}catch(e){}}
+    if(settings.voice!=="browser"&&!kokoro&&!kokoroFailed){try{await Promise.race([loadKokoro(),new Promise(r=>setTimeout(r,1500))])}catch(e){}}
     await speakItem(item);
     if(state!=="countdown"){discardVideo();return}
   }
@@ -892,15 +917,33 @@ $("btnStop").onclick=async()=>{
   item.drill?finishDrill():finishAnswer();
 };
 function resetButtons(){$("btnStart").style.display="";$("btnStart").textContent=isReal()?"Begin interview":(session&&session.recs.length===0?"Start interview":"Start answer");$("btnStop").style.display="none";updateStart()}
+let asrWorker=null,asrReady=null,asrId=0;const asrReqs=new Map();
+function loadASR(){
+  if(asrReady)return asrReady;
+  asrReady=new Promise((res,rej)=>{
+    try{asrWorker=makeWorker(ASR_WORKER_CODE)}catch(e){asrReady=null;rej(e);return}
+    asrWorker.onmessage=e=>{const m=e.data;
+      if(m.type==="progress"){if(state==="processing")$("status").textContent="First time only: downloading speech model "+m.pct+"%"}
+      else if(m.type==="ready")res();
+      else if(m.type==="text"){const r=asrReqs.get(m.id);if(r){asrReqs.delete(m.id);r.ok(m.text)}}
+      else if(m.type==="error"){const r=asrReqs.get(m.id);if(r){asrReqs.delete(m.id);r.bad(new Error(m.message))}else{asrReady=null;rej(new Error(m.message))}}};
+    asrWorker.onerror=e=>{e.preventDefault&&e.preventDefault();asrReady=null;rej(new Error(e.message||"worker error"))};
+    asrWorker.postMessage({type:"load"});
+  });
+  asrReady.catch(()=>{});
+  return asrReady;
+}
 async function localTranscribe(blob){
   $("status").textContent="Creating your transcript on this laptop...";
-  if(!whisper){
-    const {pipeline}=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
-    whisper=await pipeline("automatic-speech-recognition","Xenova/whisper-base.en",{progress_callback:p=>{if(p.status==="progress"&&p.file&&p.file.endsWith(".onnx"))$("status").textContent="First time only: downloading speech model "+Math.round(p.progress||0)+"%"}});
-  }
-  $("status").textContent="Creating your transcript on this laptop...";
   const ac=new AudioContext({sampleRate:16000}),buf=await ac.decodeAudioData(await blob.arrayBuffer());ac.close();
-  const out=await whisper(buf.getChannelData(0),{chunk_length_s:30,stride_length_s:5});
+  const audio=new Float32Array(buf.getChannelData(0));
+  try{loadASR()}catch(e){}
+  if(asrWorker){
+    const text=await new Promise((ok,bad)=>{const id=++asrId;asrReqs.set(id,{ok,bad});asrWorker.postMessage({type:"asr",id,audio},[audio.buffer]);setTimeout(()=>{if(asrReqs.has(id)){asrReqs.delete(id);bad(new Error("transcription timed out"))}},240000)});
+    $("status").textContent="Transcript ready.";return text;
+  }
+  if(!whisper){const {pipeline}=await import(TRANSFORMERS_URL);whisper=await pipeline("automatic-speech-recognition","Xenova/whisper-base.en")}
+  const out=await whisper(audio,{chunk_length_s:30,stride_length_s:5});
   $("status").textContent="Transcript ready.";return (out.text||"").trim();
 }
 
@@ -1153,7 +1196,7 @@ async function stopRealAnswer(){
   $("rec").style.display="none";$("btnStop").style.display="none";S.dur=(performance.now()-S.t0)/1000;
   const a=new Promise(res=>{if(mr&&mr.state!=="inactive"){mr.onstop=res;mr.stop()}else res()});
   const v=new Promise(res=>{if(vr&&vr.state!=="inactive"){vr.onstop=res;vr.stop()}else res()});
-  await new Promise(r=>setTimeout(r,500));await a;await v;
+  await new Promise(r=>setTimeout(r,200));await a;await v;
   S.interim="";S.liveText=textAll();S.video=vChunks.length?new Blob(vChunks,{type:(vChunks[0].type||"video/webm").split(";")[0]}):null;compText="";
   if(S.video){autoDownload(S.video,item.q,"real");S.dlDone=true}
   session.queue.push({S,G:{...G},item,audio:audioChunks});

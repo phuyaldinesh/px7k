@@ -1,4 +1,4 @@
-# Interview Prep Studio guide (Version 15)
+# Interview Prep Studio guide (Version 16)
 
 ## Your files
 | File | What it is | Where it goes |
@@ -16,7 +16,7 @@ Claude feedback page: https://claude.ai/artifact/2BNfxUGdUpvTcvFF4TERSE (also li
 2. Click **Add file**, then **Upload files**.
 3. Drag in **index.html**, **models.js** and **README.md** together, then click **Commit changes**.
 4. Wait 2 minutes, open https://phuyaldinesh.github.io/px7k/ and press Ctrl + Shift + R (Mac: Cmd + Shift + R).
-5. The bottom of the home page should say **Version 15**.
+5. The bottom of the home page should say **Version 16**.
 
 If face tracking says "Could not load models.js", models.js is missing from GitHub. Upload it again.
 
@@ -52,7 +52,13 @@ The interviewer voice downloads quietly in the background the first time (about 
 
 Claude cannot watch video files, so the pack contains your transcript and still frames from each answer.
 
-## 6. If something goes wrong
+## 6. Speed
+- The interviewer voice and the transcript run in the background, so the page stays smooth while they work.
+- The first time, the voice and the speech model download once (1 to 2 minutes each). After that they load quickly.
+- Recording starts as soon as the interviewer finishes the question. If the voice is still loading, a backup voice asks the question so you never wait.
+
+## 7. If something goes wrong
+- A red message appears at the top: read it, press Ctrl + Shift + R, and send me the message if it comes back.
 - Nothing happens on the page: press Ctrl + Shift + R.
 - No transcript: the speech model downloads the first time; allow the microphone (icon in the address bar).
 - Interviewer voice shows "!": reload. The browser voice is used meanwhile (not saved in videos).
